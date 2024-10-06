@@ -1,24 +1,13 @@
-import { StyleSheet } from "react-native";
-import { WebView, WebViewProps } from "react-native-webview";
-import { useState, useEffect } from "react";
-
-import { CountryCode, getOAuthWebviewSource } from "@/services/audible";
+import { useIsServiceRegistered } from "@/components/contexts/AssetsServiceContext";
+import RegisterAudibleSource from "@/components/containers/RegisterAudibleSource";
+import AudibleSource from "@/components/containers/AudibleSource";
 
 export default function Audible() {
-  const [source, setSource] = useState<WebViewProps["source"]>(undefined);
+  const isServiceRegistered = useIsServiceRegistered("audible");
 
-  useEffect(() => {
-    getOAuthWebviewSource({ countryCode: CountryCode.US }).then((source) => {
-      console.log("setting source", source);
-      setSource(source);
-    });
-  }, []);
-
-  return source ? <WebView source={source} style={styles.container} /> : null;
+  if (isServiceRegistered) {
+    return <AudibleSource />;
+  } else {
+    return <RegisterAudibleSource />;
+  }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});

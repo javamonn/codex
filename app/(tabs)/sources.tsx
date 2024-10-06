@@ -20,7 +20,7 @@ const SOURCES: SourceItemProps[] = [
 
 function SourceItem({ name, source, href }: SourceItemProps) {
   return (
-    <Link href={href} asChild>
+    <Link href={href} asChild push>
       <Pressable style={styles.sourceItemContainer}>
         <Image source={source} style={styles.sourceItemImage} />
         <Text color="primary" size="md">

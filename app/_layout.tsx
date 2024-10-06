@@ -1,34 +1,43 @@
+import { useEffect, useState } from "react";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
 import "react-native-reanimated";
+
+import { AssetServiceContextProvider } from "@/components/contexts/AssetsServiceContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  const [isFontsLoaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  const [isAssetServiceInitialized, setAssetServiceInitialized] =
+    useState(false);
+
+  const initialized = isFontsLoaded && isAssetServiceInitialized;
 
   useEffect(() => {
-    if (loaded) {
+    if (initialized) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
+  }, [initialized]);
 
   return (
-    <ThemeProvider value={DarkTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-    </ThemeProvider>
+    <AssetServiceContextProvider
+      initializeOnMount
+      onInitialized={() => setAssetServiceInitialized(true)}
+    >
+      <ThemeProvider value={DarkTheme}>
+        {initialized && (
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+        )}
+      </ThemeProvider>
+    </AssetServiceContextProvider>
   );
 }

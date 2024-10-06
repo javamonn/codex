@@ -5,7 +5,15 @@ import {
   CryptoDigestAlgorithm,
   CryptoEncoding,
 } from "expo-crypto";
-import type { WebViewProps } from "react-native-webview";
+
+import type { OAuthToken } from "@/services/oauth";
+import { Logger } from "@/services/logger";
+
+const LOGGER = new Logger("AudibleService");
+
+/**
+ * Handles interaction with the Audible API for OAuth, virtual device registration, and library access.
+ */
 
 export enum CountryCode {
   US = "us",
@@ -21,18 +29,39 @@ export enum CountryCode {
   BR = "br",
 }
 
+export enum TLD {
+  US = "com",
+  CA = "ca",
+  UK = "co.uk",
+  AU = "com.au",
+  FR = "fr",
+  DE = "de",
+  JP = "co.jp",
+  IT = "it",
+  IN = "co.in",
+  ES = "es",
+  BR = "com.br",
+}
+
+export type OAuthParams = {
+  deviceSerial: string; // A virtual device serial number, used in oauth and device registration
+  codeVerifier: string; // A random byte string, used in oauth and device registration
+  tld: string; // Top-level domain for the marketplace country (e.g. "com")
+  authorizationCode: string; // Code received from oauth flow completion, used in device registration
+};
+
 const LOCALES: Record<CountryCode, { tld: string; marketPlaceId: string }> = {
-  [CountryCode.US]: { tld: "com", marketPlaceId: "AF2M0KC94RCEA" },
-  [CountryCode.CA]: { tld: "ca", marketPlaceId: "A2CQZ5RBY40XE" },
-  [CountryCode.UK]: { tld: "co.uk", marketPlaceId: "A2I9A3Q2GNFNGQ" },
-  [CountryCode.AU]: { tld: "com.au", marketPlaceId: "AN7EY7DTAW63G" },
-  [CountryCode.FR]: { tld: "fr", marketPlaceId: "A2728XDNODOQ8T" },
-  [CountryCode.DE]: { tld: "de", marketPlaceId: "AN7V1F1VY261K" },
-  [CountryCode.JP]: { tld: "co.jp", marketPlaceId: "A1QAP3MOU4173J" },
-  [CountryCode.IT]: { tld: "it", marketPlaceId: "A2N7FU2W2BU2ZC" },
-  [CountryCode.IN]: { tld: "co.in", marketPlaceId: "AJO3FBRUE6J4S" },
-  [CountryCode.ES]: { tld: "es", marketPlaceId: "ALMIKO4SZCSAR" },
-  [CountryCode.BR]: { tld: "com.br", marketPlaceId: "A10J1VAYUDTYRN" },
+  [CountryCode.US]: { tld: TLD.US, marketPlaceId: "AF2M0KC94RCEA" },
+  [CountryCode.CA]: { tld: TLD.CA, marketPlaceId: "A2CQZ5RBY40XE" },
+  [CountryCode.UK]: { tld: TLD.UK, marketPlaceId: "A2I9A3Q2GNFNGQ" },
+  [CountryCode.AU]: { tld: TLD.AU, marketPlaceId: "AN7EY7DTAW63G" },
+  [CountryCode.FR]: { tld: TLD.FR, marketPlaceId: "A2728XDNODOQ8T" },
+  [CountryCode.DE]: { tld: TLD.DE, marketPlaceId: "AN7V1F1VY261K" },
+  [CountryCode.JP]: { tld: TLD.JP, marketPlaceId: "A1QAP3MOU4173J" },
+  [CountryCode.IT]: { tld: TLD.IT, marketPlaceId: "A2N7FU2W2BU2ZC" },
+  [CountryCode.IN]: { tld: TLD.IN, marketPlaceId: "AJO3FBRUE6J4S" },
+  [CountryCode.ES]: { tld: TLD.ES, marketPlaceId: "ALMIKO4SZCSAR" },
+  [CountryCode.BR]: { tld: TLD.BR, marketPlaceId: "A10J1VAYUDTYRN" },
 } as const;
 
 // Matches python .encode() behavior
@@ -53,7 +82,7 @@ const DEFAULT_HEADERS = {
   "Accept-Language": "en-US",
   "Accept-Encoding": "gzip",
 };
-const CLIENT_ID_SUFFIX: string = encodeHex("#A2CZJZGLK2JJVM");
+const CLIENT_ID_SUFFIX: string = "#A2CZJZGLK2JJVM";
 
 async function getOAuthHeaders(): Promise<Record<string, string>> {
   const frcBytes = await getRandomBytesAsync(313);
@@ -104,7 +133,7 @@ async function getOAuthURL({
   codeVerifier: string;
 }): Promise<URL> {
   const { tld, marketPlaceId } = LOCALES[countryCode];
-  const clientId = deviceSerial + CLIENT_ID_SUFFIX;
+  const clientId = encodeHex(deviceSerial + CLIENT_ID_SUFFIX);
   const codeChallenge = await digestStringAsync(
     CryptoDigestAlgorithm.SHA256,
     codeVerifier,
@@ -138,15 +167,19 @@ async function getOAuthURL({
   return new URL(`https://www.amazon.${tld}/ap/signin?${params.toString()}`);
 }
 
+// Get params required for initializing user-driven oauth flow
 export async function getOAuthWebviewSource({
   countryCode,
   deviceSerial,
 }: {
   countryCode: CountryCode;
   deviceSerial?: string;
-}): Promise<WebViewProps["source"]> {
+}): Promise<{
+  source: { uri: string; headers: Record<string, string> };
+  oauthParams: Omit<OAuthParams, "authorizationCode">;
+}> {
   const deviceSerialWithDefault =
-    deviceSerial ?? encodeHex(randomUUID().replace(/-/g, "").toUpperCase());
+    deviceSerial ?? randomUUID().replace(/-/g, "").toUpperCase();
   const codeVerifier = await getCodeVerifier();
   const [headers, url] = await Promise.all([
     getOAuthHeaders(),
@@ -157,9 +190,148 @@ export async function getOAuthWebviewSource({
     }),
   ]);
 
-  // TODO: probably need to return codeVerifier, domain, serial here as well
   return {
-    uri: url.toString(),
-    headers,
+    source: {
+      uri: url.toString(),
+      headers,
+    },
+    oauthParams: {
+      tld: LOCALES[countryCode].tld,
+      deviceSerial: deviceSerialWithDefault,
+      codeVerifier,
+    },
+  };
+}
+
+// Get a new access token using a refresh token
+export async function refreshOAuthToken({
+  refreshToken,
+  tld,
+}: {
+  refreshToken: string;
+  tld: string;
+}): Promise<OAuthToken> {
+  const res = await fetch(`https://api.amazon.${tld}/auth/refresh`, {
+    method: "POST",
+    body: JSON.stringify({
+      app_name: "Audible",
+      app_version: "3.56.2",
+      source_token: refreshToken,
+      requested_token_type: "access_token",
+      source_token_type: "refresh_token",
+    }),
+  });
+  const resBody = await res.json();
+
+  const expires_in_seconds = parseInt(resBody.expires_in);
+  const expiresAt = Date.now() + expires_in_seconds * 1000;
+
+  return { accessToken: resBody.access_token, refreshToken, expiresAt };
+}
+
+// Register a device with completed oauth params
+export type DeviceRegistration = {
+  adpToken: string;
+  devicePrivateKey: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  websiteCookies: Record<string, string>;
+  storeAuthenticationCookie: string;
+  deviceInfo: Record<string, string>;
+  customerInfo: Record<string, string>;
+};
+export async function registerDevice(
+  { tld, codeVerifier, deviceSerial, authorizationCode }: OAuthParams,
+  headers: Record<string, string>
+): Promise<{
+  deviceRegistration: DeviceRegistration;
+  oauthToken: OAuthToken;
+}> {
+  const body = {
+    requested_token_type: [
+      "bearer",
+      "mac_dms",
+      "website_cookies",
+      "store_authentication_cookie",
+    ],
+    cookies: { website_cookies: [], domain: `.amazon.${tld}` },
+    registration_data: {
+      domain: "Device",
+      app_version: "3.56.2",
+      device_serial: deviceSerial,
+      device_type: "A2CZJZGLK2JJVM",
+      device_name:
+        "%FIRST_NAME%%FIRST_NAME_POSSESSIVE_STRING%%DUPE_STRATEGY_1ST%Audible for iPhone",
+      os_version: "15.0.0",
+      software_version: "35602678",
+      device_model: "iPhone",
+      app_name: "Audible",
+    },
+    auth_data: {
+      client_id: encodeHex(deviceSerial + CLIENT_ID_SUFFIX),
+      authorization_code: authorizationCode,
+      code_verifier: codeVerifier,
+      code_algorithm: "SHA-256",
+      client_domain: "DeviceLegacy",
+    },
+    requested_extensions: ["device_info", "customer_info"],
+  };
+
+  const res = await fetch(`https://api.amazon.${tld}/auth/register`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: headers,
+  });
+
+  const resBody = await res.json();
+
+  LOGGER.debug("registerDevice complete", JSON.stringify(resBody));
+
+  if (!res.ok) {
+    throw new Error(
+      `Device registration failed: ${res.statusText} ${JSON.stringify(resBody)}`
+    );
+  }
+
+  const successResponse = resBody.response.success;
+  const tokens = successResponse.tokens;
+  const adpToken = tokens.mac_dms.adp_token;
+  const devicePrivateKey = tokens.mac_dms.device_private_key;
+  const storeAuthenticationCookie = tokens.store_authentication_cookie;
+  const accessToken = tokens.bearer.access_token;
+  const refreshToken = tokens.bearer.refresh_token;
+  const expires_in_seconds = parseInt(tokens.bearer.expires_in);
+  const expiresAt = Date.now() + expires_in_seconds * 1000;
+
+  const extensions = successResponse.extensions;
+  const deviceInfo = extensions.device_info;
+  const customerInfo = extensions.customer_info;
+
+  const websiteCookies = tokens.website_cookies.reduce(
+    (acc: Record<string, string>, cookie: { Name: string; Value: string }) => ({
+      ...acc,
+      [cookie.Name]: cookie.Value.replaceAll('"', ""),
+    }),
+    {}
+  );
+
+  return {
+    deviceRegistration: {
+      adpToken,
+      devicePrivateKey,
+      accessToken,
+      refreshToken,
+      expiresAt,
+      websiteCookies,
+      storeAuthenticationCookie,
+      deviceInfo,
+      customerInfo,
+    },
+    oauthToken: {
+      accessToken,
+      refreshToken,
+      expiresAt,
+    },
   };
 }
