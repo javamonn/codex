@@ -1,5 +1,7 @@
 import type { EventEmitter } from "eventemitter3";
 
+export type Asset = unknown;
+
 declare class AssetService<
   InstanceParams = any,
   EventTypes extends EventEmitter.ValidEventTypes = string | symbol
@@ -10,7 +12,11 @@ declare class AssetService<
   // Serialize the instance params to a string for persistence
   getSerializedParams(): string;
 
+  // Get the EventEmitter instance for the service
   getEmitter(): Omit<EventEmitter<EventTypes>, "emit">;
+
+  // Get assets from the service.
+  getAssets(): Promise<Asset[]>
 }
 
 export type AssetServiceInterface<

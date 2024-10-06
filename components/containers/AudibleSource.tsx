@@ -4,9 +4,7 @@ import { Text } from "@/components/primitives";
 import { useAssetServiceContext } from "@/components/contexts/AssetsServiceContext";
 
 export default function AudibleSource() {
-  const { services } = useAssetServiceContext();
-
-  console.log("services", services);
+  // const { services } = useAssetServiceContext();
 
   return (
     <View style={styles.container}>

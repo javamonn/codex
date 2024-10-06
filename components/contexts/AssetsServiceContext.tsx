@@ -181,6 +181,7 @@ export const AssetServiceContextProvider = ({
       setAudible(hydratedServices.audible);
     }
 
+    hasInitializedServices.current = true;
     onInitialized();
   }, [setAudible, onInitialized]);
 

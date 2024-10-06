@@ -1,4 +1,7 @@
 import { EventEmitter } from "eventemitter3";
+import { Logger } from "./logger";
+
+const LOGGER = new Logger("OAuthService");
 
 export type OAuthToken = {
   accessToken: string;
@@ -40,13 +43,12 @@ export class OAuthService {
     this.emitter = new EventEmitter();
   }
 
-  public async applyRequestHeaders(headers: Headers): Promise<void> {
+  public async getAccessToken(): Promise<string> {
     if (this.isExpired()) {
       await this.refreshToken();
     }
 
-    headers.append("Authorization", `Bearer ${this.token.accessToken}`);
-    headers.append("client-id", "0");
+    return this.token.accessToken;
   }
 
   public serialize(): string {
@@ -58,8 +60,15 @@ export class OAuthService {
   }
 
   private async refreshToken(): Promise<void> {
-    this.token = await this.onRefreshToken(this.token.refreshToken);
-    this.emitter.emit("token_refreshed");
+    try {
+      this.token = await this.onRefreshToken(this.token.refreshToken);
+      this.emitter.emit("token_refreshed");
+
+      LOGGER.info("refreshToken: token_refreshed");
+    } catch (e) {
+      LOGGER.error("refreshToken", e as Error);
+      throw e;
+    }
   }
 
   public getEmitter(): Omit<typeof this.emitter, "emit"> {

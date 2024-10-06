@@ -1,7 +1,13 @@
-import { AssetServiceInterface } from "./types";
-import { DeviceRegistration, refreshOAuthToken, TLD } from "@/services/audible";
+import { AssetServiceInterface, Asset } from "./types";
+import {
+  DeviceRegistration,
+  getLibraryPage,
+  refreshOAuthToken,
+  TLD,
+} from "@/services/audible";
 import { OAuthToken, OAuthService } from "@/services/oauth";
 import { EventEmitter } from "eventemitter3";
+import { CLIENT_ID_SUFFIX, encodeHex } from "../audible/auth";
 
 export type AudibleInstanceParams = {
   tld: TLD;
@@ -33,6 +39,8 @@ export const AudibleAssetsService: AssetServiceInterface<
     } else {
       parsedParams = params;
     }
+
+    console.log("parsedParams", parsedParams);
 
     if (
       !parsedParams.deviceRegistration ||
@@ -68,5 +76,26 @@ export const AudibleAssetsService: AssetServiceInterface<
 
   public getEmitter(): Omit<typeof this.emitter, "emit"> {
     return this.emitter;
+  }
+
+  public async getAssets(): Promise<Asset[]> {
+    const headers = await this.getRequestHeaders();
+    const assets = await getLibraryPage({
+      authHeaders: headers,
+      tld: this.tld,
+    });
+
+    console.log("assets", assets);
+
+    return assets;
+  }
+
+  private async getRequestHeaders(): Promise<Headers> {
+    const headers = new Headers({
+      "client-id": "0",
+    });
+    const accessToken = await this.oauthService.getAccessToken();
+    headers.set("Authorization", `Bearer ${accessToken}`);
+    return headers;
   }
 };

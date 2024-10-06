@@ -9,63 +9,24 @@ import {
 import type { OAuthToken } from "@/services/oauth";
 import { Logger } from "@/services/logger";
 
+import { CountryCode, Locale, TLD } from "./constants";
+import { assertResponseStatus } from "@/utils";
+
 const LOGGER = new Logger("AudibleService");
 
 /**
  * Handles interaction with the Audible API for OAuth, virtual device registration, and library access.
  */
 
-export enum CountryCode {
-  US = "us",
-  CA = "ca",
-  UK = "uk",
-  AU = "au",
-  FR = "fr",
-  DE = "de",
-  JP = "jp",
-  IT = "it",
-  IN = "in",
-  ES = "es",
-  BR = "br",
-}
-
-export enum TLD {
-  US = "com",
-  CA = "ca",
-  UK = "co.uk",
-  AU = "com.au",
-  FR = "fr",
-  DE = "de",
-  JP = "co.jp",
-  IT = "it",
-  IN = "co.in",
-  ES = "es",
-  BR = "com.br",
-}
-
 export type OAuthParams = {
   deviceSerial: string; // A virtual device serial number, used in oauth and device registration
   codeVerifier: string; // A random byte string, used in oauth and device registration
-  tld: string; // Top-level domain for the marketplace country (e.g. "com")
+  tld: TLD; // Top-level domain for the marketplace country (e.g. "com")
   authorizationCode: string; // Code received from oauth flow completion, used in device registration
 };
 
-const LOCALES: Record<CountryCode, { tld: string; marketPlaceId: string }> = {
-  [CountryCode.US]: { tld: TLD.US, marketPlaceId: "AF2M0KC94RCEA" },
-  [CountryCode.CA]: { tld: TLD.CA, marketPlaceId: "A2CQZ5RBY40XE" },
-  [CountryCode.UK]: { tld: TLD.UK, marketPlaceId: "A2I9A3Q2GNFNGQ" },
-  [CountryCode.AU]: { tld: TLD.AU, marketPlaceId: "AN7EY7DTAW63G" },
-  [CountryCode.FR]: { tld: TLD.FR, marketPlaceId: "A2728XDNODOQ8T" },
-  [CountryCode.DE]: { tld: TLD.DE, marketPlaceId: "AN7V1F1VY261K" },
-  [CountryCode.JP]: { tld: TLD.JP, marketPlaceId: "A1QAP3MOU4173J" },
-  [CountryCode.IT]: { tld: TLD.IT, marketPlaceId: "A2N7FU2W2BU2ZC" },
-  [CountryCode.IN]: { tld: TLD.IN, marketPlaceId: "AJO3FBRUE6J4S" },
-  [CountryCode.ES]: { tld: TLD.ES, marketPlaceId: "ALMIKO4SZCSAR" },
-  [CountryCode.BR]: { tld: TLD.BR, marketPlaceId: "A10J1VAYUDTYRN" },
-} as const;
-
 // Matches python .encode() behavior
-function encodeHex(input: string): string {
+export function encodeHex(input: string): string {
   let output = "";
   for (let i = 0; i < input.length; i++) {
     if (input.charCodeAt(i) > 127) {
@@ -82,7 +43,7 @@ const DEFAULT_HEADERS = {
   "Accept-Language": "en-US",
   "Accept-Encoding": "gzip",
 };
-const CLIENT_ID_SUFFIX: string = "#A2CZJZGLK2JJVM";
+export const CLIENT_ID_SUFFIX: string = "#A2CZJZGLK2JJVM";
 
 async function getOAuthHeaders(): Promise<Record<string, string>> {
   const frcBytes = await getRandomBytesAsync(313);
@@ -132,7 +93,7 @@ async function getOAuthURL({
   countryCode: CountryCode;
   codeVerifier: string;
 }): Promise<URL> {
-  const { tld, marketPlaceId } = LOCALES[countryCode];
+  const { tld, marketPlaceId } = Locale[countryCode];
   const clientId = encodeHex(deviceSerial + CLIENT_ID_SUFFIX);
   const codeChallenge = await digestStringAsync(
     CryptoDigestAlgorithm.SHA256,
@@ -196,7 +157,7 @@ export async function getOAuthWebviewSource({
       headers,
     },
     oauthParams: {
-      tld: LOCALES[countryCode].tld,
+      tld: Locale[countryCode].tld,
       deviceSerial: deviceSerialWithDefault,
       codeVerifier,
     },
@@ -211,7 +172,7 @@ export async function refreshOAuthToken({
   refreshToken: string;
   tld: string;
 }): Promise<OAuthToken> {
-  const res = await fetch(`https://api.amazon.${tld}/auth/refresh`, {
+  const res = await fetch(`https://api.amazon.${tld}/auth/token`, {
     method: "POST",
     body: JSON.stringify({
       app_name: "Audible",
@@ -220,9 +181,16 @@ export async function refreshOAuthToken({
       requested_token_type: "access_token",
       source_token_type: "refresh_token",
     }),
+    headers: {
+      Accept: "application/json",
+      "Accept-Charset": "utf-8",
+      "Content-Type": "application/json",
+    },
   });
-  const resBody = await res.json();
 
+  await assertResponseStatus(res);
+
+  const resBody = await res.json();
   const expires_in_seconds = parseInt(resBody.expires_in);
   const expiresAt = Date.now() + expires_in_seconds * 1000;
 
