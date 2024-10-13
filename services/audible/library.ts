@@ -1,6 +1,7 @@
 import { assertResponseStatus } from "@/utils";
 
 import { TLD } from "./constants";
+import { SignatureParams, getSignedRequestHeaders } from "./adp";
 
 const BASE_REQUEST_HEADERS = {
   Accept: "application/json",
@@ -20,7 +21,7 @@ export async function getLibraryPage({
   authHeaders,
   tld,
 }: {
-  authHeaders: Headers;
+  adp: ADPSignatureParams
   tld: TLD;
 }) {
   const query = new URLSearchParams({
@@ -29,7 +30,12 @@ export async function getLibraryPage({
     num_results: "100",
   });
   const headers = getHeaders(authHeaders);
-  console.log("headers", headers);
+
+  const requestInit: RequestInit = {
+
+  }
+
+
   const res = await fetch(`https://api.audible.${tld}/1.0/library?${query}`, {
     method: "GET",
     headers,
