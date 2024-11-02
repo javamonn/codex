@@ -41,3 +41,11 @@ export const Locale: Record<CountryCode, { tld: TLD; marketPlaceId: string }> =
     [CountryCode.BR]: { tld: TLD.BR, marketPlaceId: "A10J1VAYUDTYRN" },
   } as const;
 
+export const DEVICE_REGISTRATION_DEFAULT_HEADERS: Record<string, string> = {
+  "User-Agent":
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+  "Accept-Language": "en-US",
+  "Accept-Encoding": "gzip",
+};
+
+export const CLIENT_ID_SUFFIX: string = "#A2CZJZGLK2JJVM";

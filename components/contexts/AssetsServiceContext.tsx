@@ -11,11 +11,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { InteractionManager } from "react-native";
 
 import { Logger } from "@/services/logger";
-import { AudibleAssetsService } from "@/services/assets/AudibleAssetsService";
+import { AudibleAssetsService } from "@/services/assets/audible";
 
-type Services = {
+export type Services = {
   audible: InstanceType<typeof AudibleAssetsService> | null;
 };
+
 type OnRegisterService<T extends keyof Services> = (
   id: T,
   service: NonNullable<Services[T]>
@@ -51,7 +52,7 @@ function handlePersistService<T extends keyof Services>(
       gen: async () => {
         await AsyncStorage.setItem(
           `${KEY_PREFIX}:${id}`,
-          service.getSerializedParams()
+          JSON.stringify(service)
         );
 
         resolve();
@@ -112,41 +113,8 @@ export const AssetServiceContextProvider = ({
   > | null>(null);
   const hasInitializedServices = useRef(false);
 
-  useEffect(() => {
-    const listeners: { [eventName: string]: any } = {};
-
-    if (audible) {
-      // Persist the service state after the oauth token is refreshed
-      listeners["oauth_token_refreshed"] = async () => {
-        try {
-          await handlePersistService("audible", audible);
-          LOGGER.info("audible: oauth_token_refreshed");
-        } catch (e) {
-          LOGGER.error("audible: oauth_token_refreshed", e as Error);
-        }
-      };
-      audible
-        .getEmitter()
-        .addListener(
-          "oauth_token_refreshed",
-          listeners["oauth_token_refreshed"]
-        );
-    }
-
-    return () => {
-      if (audible) {
-        audible
-          .getEmitter()
-          .removeListener(
-            "oauth_token_refreshed",
-            listeners["oauth_token_refreshed"]
-          );
-      }
-    };
-  }, [audible]);
-
-  // Registers a new AssetService. This should be called once for each service
-  // when first connected.
+  // Registers a new AssetService. This should be called once for each 
+  // service when first connected.
   const onRegisterService: OnRegisterService<keyof Services> = useCallback(
     async (id, service) => {
       LOGGER.info("onRegisterService", { id });
@@ -166,8 +134,9 @@ export const AssetServiceContextProvider = ({
     [setAudible]
   );
 
-  // Attempt to hydrate services registered in previous app sessions from AsyncStorage. This
-  // should be called once early in the app lifecycle.
+  // Attempt to hydrate services registered in previous app sessions 
+  // from AsyncStorage. This should be called once early in the app 
+  // lifecycle.
   const onInitializeServices = useCallback(async () => {
     LOGGER.info("onInitializeServices");
 

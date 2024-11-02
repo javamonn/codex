@@ -4,13 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 
 import { useRegisterService } from "@/components/contexts/AssetsServiceContext";
 import { Logger } from "@/services/logger";
-import { AudibleAssetsService } from "@/services/assets/AudibleAssetsService";
+import { AudibleAssetsService } from "@/services/assets/audible";
 import {
   CountryCode,
   OAuthParams,
-  getOAuthWebviewSource,
-  registerDevice,
-} from "@/services/audible";
+  DeviceRegistration,
+} from "@/services/assets/audible";
 
 type FlowState =
   | {
@@ -59,7 +58,7 @@ export default function RegisterAudibleSource() {
 
   // flowState oauth_init -> oauth_pending
   const handleOAuthInit = useCallback(async () => {
-    const { source, oauthParams } = await getOAuthWebviewSource({
+    const { source, oauthParams } = await DeviceRegistration.startOAuth({
       countryCode: CountryCode.US,
     });
 
@@ -80,16 +79,12 @@ export default function RegisterAudibleSource() {
     async (oauthParams: OAuthParams, headers: Record<string, string>) => {
       LOGGER.info("oauth complete");
       try {
-        const { deviceRegistration, oauthToken } = await registerDevice(
+        const deviceRegistration = await DeviceRegistration.fromCompletedOAuth({
           oauthParams,
-          headers
-        );
-
-        const audibleService = new AudibleAssetsService({
-          deviceRegistration,
-          oauthToken,
-          tld: oauthParams.tld,
+          headers,
         });
+
+        const audibleService = new AudibleAssetsService({ deviceRegistration });
 
         await registerService("audible", audibleService);
       } catch (e) {

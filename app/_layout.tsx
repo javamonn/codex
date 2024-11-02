@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import * as SplashScreen from "expo-splash-screen";
 import "react-native-reanimated";
 
@@ -9,6 +10,7 @@ import { AssetServiceContextProvider } from "@/components/contexts/AssetsService
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const [isFontsLoaded] = useFonts({
@@ -31,12 +33,14 @@ export default function RootLayout() {
       onInitialized={() => setAssetServiceInitialized(true)}
     >
       <ThemeProvider value={DarkTheme}>
-        {initialized && (
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-        )}
+        <QueryClientProvider client={queryClient}>
+          {initialized && (
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+          )}
+        </QueryClientProvider>
       </ThemeProvider>
     </AssetServiceContextProvider>
   );
