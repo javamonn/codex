@@ -3,7 +3,7 @@ import { WebView, WebViewProps } from "react-native-webview";
 import { useState, useEffect, useCallback } from "react";
 
 import { useRegisterService } from "@/components/contexts/AssetsServiceContext";
-import { Logger } from "@/services/logger";
+import { log } from "@/services/logger";
 import { AudibleAssetsService } from "@/services/assets/audible";
 import {
   CountryCode,
@@ -48,7 +48,7 @@ function FlowLoader() {
   );
 }
 
-const LOGGER = new Logger("ConnectAudible");
+const LOGGER_SERVICE_NAME = "containers/RegisterAudibleSource";
 
 export default function RegisterAudibleSource() {
   const [flowState, setFlowState] = useState<FlowState>({
@@ -77,7 +77,12 @@ export default function RegisterAudibleSource() {
   // flowState oauth_complete -> device_registration_pending
   const handleOAuthComplete = useCallback(
     async (oauthParams: OAuthParams, headers: Record<string, string>) => {
-      LOGGER.info("oauth complete");
+      log({
+        level: "info",
+        message: "oauth complete",
+        service: LOGGER_SERVICE_NAME,
+      });
+
       try {
         const deviceRegistration = await DeviceRegistration.fromCompletedOAuth({
           oauthParams,
@@ -88,7 +93,12 @@ export default function RegisterAudibleSource() {
 
         await registerService("audible", audibleService);
       } catch (e) {
-        LOGGER.error("device registration error", e as Error);
+        log({
+          level: "error",
+          message: "device registration error",
+          data: e as Error,
+          service: LOGGER_SERVICE_NAME,
+        });
         setFlowState({
           state: "device_registration_error",
           error: e as Error,

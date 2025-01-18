@@ -7,7 +7,6 @@ import {
   DeviceRegistrationParams,
 } from "./device-registration";
 import { getLibraryPage } from "./library";
-import { AssetSourceMetadata } from "./asset-source-metadata";
 import { AudibleAsset } from "./asset";
 
 // Params as serialized to JSON
@@ -69,8 +68,9 @@ export const AudibleAssetsService: AssetServiceInterface<
   }
 
   public async getAssets({ page, limit }: GetAsssetParams): Promise<Asset[]> {
+    const client = this.deviceRegistration.getClient();
     const libraryItems = await getLibraryPage({
-      deviceRegistration: this.deviceRegistration,
+      client,
       responseGroups: [
         "media",
         "product_attrs",
@@ -83,14 +83,13 @@ export const AudibleAssetsService: AssetServiceInterface<
       limit,
     });
 
-    const sourceMetadataByAsin = await AssetSourceMetadata.getManyByAsin(
-      libraryItems
+    return libraryItems.map(
+      (libraryItem) =>
+        new AudibleAsset({
+          libraryItem,
+          client,
+        })
     );
-
-    return libraryItems.map((libraryItem) => {
-      const sourceMetadata = sourceMetadataByAsin[libraryItem.asin] ?? null;
-      return new AudibleAsset({ libraryItem, sourceMetadata });
-    });
   }
 };
 

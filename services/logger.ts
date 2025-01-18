@@ -5,7 +5,7 @@ type FormattedLog = {
   data?: Object;
 };
 
-function log({ level, message, data, service }: FormattedLog) {
+export function log({ level, message, data, service }: FormattedLog) {
   console.log({
     level,
     message,
@@ -15,34 +15,5 @@ function log({ level, message, data, service }: FormattedLog) {
   });
 
   // TODO: append to log file in production
-}
-
-export class Logger {
-  private serviceName: string;
-
-  constructor(serviceName: string) {
-    this.serviceName = serviceName;
-  }
-
-  public info(message: string, data?: Object) {
-    log({ level: "info", message, data, service: this.serviceName });
-  }
-
-  public error(message: string, error: Error) {
-    // TODO: send errors to sentry
-    log({
-      level: "error",
-      message: message,
-      data: { message: error.message, stack: error.stack },
-      service: this.serviceName,
-    });
-  }
-
-  public warn(message: string, data?: Object) {
-    log({ level: "warn", message, data, service: this.serviceName });
-  }
-
-  public debug(message: string, data?: Object) {
-    log({ level: "debug", message, data, service: this.serviceName });
-  }
+  // TODO: send errors to sentry
 }

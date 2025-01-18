@@ -8,7 +8,7 @@ import {
 import JSEncrypt from "jsencrypt";
 import sha256 from "crypto-js/sha256";
 
-import { Logger } from "@/services/logger";
+import { log } from "@/services/logger";
 
 import {
   CountryCode,
@@ -38,51 +38,85 @@ export type OAuthParams = {
   authorizationCode: string; // Code received from oauth flow completion, used in device registration
 };
 
-const LOGGER = new Logger("DeviceRegistration");
+const LOGGER_SERVICE_NAME = "audible-service/device-registration";
+
+export class Client {
+  adpToken: string;
+  encrypt: JSEncrypt;
+  tld: TLD;
+
+  constructor({
+    adpToken,
+    devicePrivateKey,
+    tld,
+  }: {
+    adpToken: string;
+    devicePrivateKey: string;
+    tld: TLD;
+  }) {
+    this.adpToken = adpToken;
+    this.tld = tld;
+    this.encrypt = new JSEncrypt();
+    this.encrypt.setKey(devicePrivateKey);
+  }
+
+  public fetch(
+    url: URL,
+    options: RequestInit & { headers?: Record<string, string> }
+  ): Promise<Response> {
+    const ts = new Date().toISOString();
+    const data = [
+      options.method ?? "GET",
+      url.pathname + url.search,
+      (options.body ?? "").toString(),
+      ts,
+      this.adpToken,
+    ].join("\n");
+
+    const signedData = this.encrypt.sign(
+      data,
+      sha256 as unknown as (str: string) => string,
+      "sha256"
+    );
+
+    // Add the signed headers to the request headers
+    if (!options.headers) {
+      options.headers = {};
+    }
+    options.headers["x-adp-token"] = this.adpToken;
+    options.headers["x-adp-alg"] = "SHA256withRSA:1.0";
+    options.headers["x-adp-signature"] = `${signedData}:${ts}`;
+
+    return fetch(url, options);
+  }
+
+  public getTLD(): TLD {
+    return this.tld;
+  }
+}
 
 // An audible device registration is required for authenticating
 // other api routes, e.g. assets. A device registration is acquired
 // by a user-driving oauth flow in a webview.
 export class DeviceRegistration {
   private params: DeviceRegistrationParams;
-  private encrypt: JSEncrypt;
+  private client: Client | null;
 
   constructor(params: DeviceRegistrationParams) {
     this.params = params;
-    this.encrypt = new JSEncrypt();
-    this.encrypt.setKey(params.devicePrivateKey);
+    this.client = null;
   }
 
-  // Sign a request with the device's private key.
-  public getSignedRequestHeaders({
-    method,
-    path,
-    body,
-    headers,
-  }: {
-    method: "GET";
-    path: string;
-    body: BodyInit | null;
-    headers: Headers;
-  }): Headers {
-    const ts = new Date().toISOString();
-    const serializedBody = (body ?? "").toString();
+  public getClient(): Client {
+    if (this.client === null) {
+      this.client = new Client({
+        adpToken: this.params.adpToken,
+        devicePrivateKey: this.params.devicePrivateKey,
+        tld: this.params.tld ?? TLD.US,
+      });
+    }
 
-    const data = `${method}\n${path}\n${ts}\n${serializedBody}\n${this.params.adpToken}`;
-
-    const signedData = this.encrypt.sign(data, sha256, "sha256");
-
-    // Add the signed headers to the request headers
-    headers.set("x-adp-token", this.params.adpToken);
-    headers.set("x-adp-alg", "SHA256withRSA:1.0");
-    headers.set("x-adp-signature", `${signedData}:${ts}`);
-
-    return headers;
-  }
-
-  public getTLD(): TLD {
-    // FIXME: remove fallback
-    return this.params.tld ?? TLD.US;
+    return this.client;
   }
 
   public toJSON() {
@@ -173,7 +207,12 @@ export class DeviceRegistration {
 
     const resBody = await res.json();
 
-    LOGGER.debug("registerDevice complete", JSON.stringify(resBody));
+    log({
+      level: "debug",
+      message: "registerDevice complete",
+      data: resBody,
+      service: LOGGER_SERVICE_NAME,
+    });
 
     if (!res.ok) {
       throw new Error(

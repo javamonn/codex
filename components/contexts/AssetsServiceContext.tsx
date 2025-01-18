@@ -10,7 +10,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { InteractionManager } from "react-native";
 
-import { Logger } from "@/services/logger";
+import { log } from "@/services/logger";
 import { AudibleAssetsService } from "@/services/assets/audible";
 
 export type Services = {
@@ -28,7 +28,7 @@ type ContextData = {
 };
 
 const KEY_PREFIX = "AssetsServiceContext";
-const LOGGER = new Logger("AssetsServiceContext");
+const LOGGER_SERVICE_NAME = "AssetsServiceContext";
 
 const Context = createContext<ContextData>({
   services: {
@@ -78,9 +78,18 @@ function maybeHydrateServices<T extends keyof Services>(
                 try {
                   acc.audible = new AudibleAssetsService(value);
 
-                  LOGGER.info("maybeHydrateServices: hydrated audible");
+                  log({
+                    level: "info",
+                    message: "maybeHydrateServices: hydrated audible",
+                    service: LOGGER_SERVICE_NAME,
+                  });
                 } catch (e) {
-                  LOGGER.error(`maybeHydrateServices: audible`, e as Error);
+                  log({
+                    level: "error",
+                    message: `maybeHydrateServices: audible`,
+                    data: e as Error,
+                    service: LOGGER_SERVICE_NAME,
+                  });
                 }
 
                 break;
@@ -113,11 +122,16 @@ export const AssetServiceContextProvider = ({
   > | null>(null);
   const hasInitializedServices = useRef(false);
 
-  // Registers a new AssetService. This should be called once for each 
+  // Registers a new AssetService. This should be called once for each
   // service when first connected.
   const onRegisterService: OnRegisterService<keyof Services> = useCallback(
     async (id, service) => {
-      LOGGER.info("onRegisterService", { id });
+      log({
+        level: "info",
+        message: "onRegisterService",
+        data: { id },
+        service: LOGGER_SERVICE_NAME,
+      });
 
       // Update service state
       switch (id) {
@@ -134,14 +148,22 @@ export const AssetServiceContextProvider = ({
     [setAudible]
   );
 
-  // Attempt to hydrate services registered in previous app sessions 
-  // from AsyncStorage. This should be called once early in the app 
+  // Attempt to hydrate services registered in previous app sessions
+  // from AsyncStorage. This should be called once early in the app
   // lifecycle.
   const onInitializeServices = useCallback(async () => {
-    LOGGER.info("onInitializeServices");
+    log({
+      level: "info",
+      message: "onInitializeServices",
+      service: LOGGER_SERVICE_NAME,
+    });
 
     if (hasInitializedServices.current) {
-      LOGGER.warn("onInitializeServices: called more than once");
+      log({
+        level: "warn",
+        message: "onInitializeServices: called more than once",
+        service: LOGGER_SERVICE_NAME,
+      });
       return;
     }
     const hydratedServices = await maybeHydrateServices(["audible"]);

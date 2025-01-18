@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LibraryItem } from "./library";
 
 type State =
-  // remote only aax asset
+  // remote only aax or aaxc asset
   | { type: "initial" }
   // aax asset download in progress
   | { type: "downloading" }

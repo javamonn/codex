@@ -1,67 +1,96 @@
-import { AVPlaybackSource } from "expo-av";
+import type { AVPlaybackSource } from "expo-av";
 import { Asset } from "../types";
 
-import { LibraryItem, Author } from "./library";
-import { AssetSourceMetadata } from "./asset-source-metadata";
+import {
+  LibraryItem,
+  parseTitle,
+  parseImageUrl,
+  parseCreators,
+  parseIsSourceAvailable,
+  parseDownloadMetadata,
+  DownloadSourceMetadata,
+} from "./library";
+import { Client } from "./device-registration";
 
 type InstanceParams = {
+  // audible library api data
   libraryItem: LibraryItem;
-  sourceMetadata: AssetSourceMetadata;
+
+  client: Client;
 };
 
 export class AudibleAsset extends Asset {
-  sourceMetadata: AssetSourceMetadata;
+  // Asset ID in audible api
+  asin: LibraryItem["asin"];
 
-  constructor({ libraryItem, sourceMetadata }: InstanceParams) {
+  // remote source is available if published and consumable offline rights exist
+  isRemoteSourceAvailable: boolean;
+
+  // metadata for downloading the asset from source
+  downloadSourceMetadata: DownloadSourceMetadata;
+
+  // used for authenticating requests to download remote assets
+  client: Client;
+
+  constructor({ libraryItem, client }: InstanceParams) {
     super({
       id: `audible:${libraryItem.asin}`,
       title: parseTitle(libraryItem.title),
       imageUrl: parseImageUrl(libraryItem.product_images),
       creators: parseCreators(libraryItem.authors),
     });
-    this.sourceMetadata = sourceMetadata;
+    this.isRemoteSourceAvailable = parseIsSourceAvailable(libraryItem);
+    this.downloadSourceMetadata = parseDownloadMetadata(libraryItem, "best");
+    this.client = client;
+    this.asin = libraryItem.asin;
   }
 
   // Audible files must be download as aax and converted to mp3 before playback
-  async getPlaybackSource(): Promise<AVPlaybackSource> {
+  public async getPlaybackSource(): Promise<AVPlaybackSource> {
+    const sourceUrl = await (this.downloadSourceMetadata.fileType === "aax"
+      ? this.getAAXUrl()
+      : this.getAAXCUrl());
+
+    throw new Error("Not implemented");
+  }
+
+  private async getAAXUrl(): Promise<string> {
+    if (!this.isRemoteSourceAvailable) {
+      throw new Error(`Remote source is not available for asin ${this.asin}`);
+    }
+
+    if (this.downloadSourceMetadata.fileType !== "aax") {
+      throw new Error(`Remote source is not AAX for asin ${this.asin}`);
+    }
+
+    const query = new URLSearchParams({
+      type: "AUDI",
+      currentTransportMethod: "WIFI",
+      key: this.asin,
+      codec: this.downloadSourceMetadata.codecName,
+    });
+
+    const res = await this.client.fetch(
+      new URL(
+        `https://cde-ta-g7g.amazon.com/FionaCDEServiceEngine/FSDownloadContent?${query}`
+      ),
+      {
+        method: "HEAD",
+      }
+    );
+
+    const location = res.headers.get("location");
+    if (!location) {
+      throw new Error(`Could not get AAX URL for asin ${this.asin}`);
+    }
+
+    return location.replace(
+      "cds.audible.com",
+      `cds.audible.${this.client.getTLD()}`
+    );
+  }
+
+  private async getAAXCUrl(): Promise<string> {
     throw new Error("Not implemented");
   }
 }
-
-const parseTitle = (title: string | null): string => {
-  if (title === null) {
-    throw new Error("No title found");
-  }
-
-  return title;
-};
-
-// Get the highest resolution image URL from the product images
-const parseImageUrl = (productImages: Record<string, string>): string => {
-  const urls = Object.entries(productImages)
-    .map(([resolution, url]) => {
-      let parsedResolution = 0;
-      try {
-        parsedResolution = parseInt(resolution);
-      } catch (e) {
-        // ignore
-      }
-
-      return { resolution: parsedResolution, url };
-    })
-    .sort((a, b) => b.resolution - a.resolution);
-
-  if (urls.length === 0) {
-    throw new Error("No image URLs found");
-  }
-
-  return urls[0].url;
-};
-
-const parseCreators = (authors: Author[]): string[] => {
-  if (authors.length === 0) {
-    throw new Error("No authors found");
-  }
-
-  return authors.map((author) => author.name);
-};
