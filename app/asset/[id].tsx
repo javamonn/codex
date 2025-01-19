@@ -6,6 +6,7 @@ import {
   Services as AssetServices,
   useAssetServiceContext,
 } from "@/components/contexts/AssetsServiceContext";
+import { Text } from "@/components/primitives";
 import { log } from "@/services/logger";
 import { AudioSource } from "expo-audio";
 
@@ -57,7 +58,18 @@ export default function AssetScreen() {
       setPlaybackSource({ status: "downloading", progress: 0 });
       console.log("Downloading playback source");
       data
-        .getPlaybackSource()
+        .getPlaybackSource({
+          onProgress: (ev) => {
+            switch (ev.type) {
+              case "download-progress":
+                setPlaybackSource({
+                  status: "downloading",
+                  progress: ev.loaded / ev.total,
+                });
+                break;
+            }
+          },
+        })
         .then((source) => {
           setPlaybackSource({ status: "ready", source });
         })
@@ -67,5 +79,13 @@ export default function AssetScreen() {
     }
   }, [data?.id]);
 
-  return null;
+  return (
+    <Text color="primary" size="md">
+      {playbackSource.status === "downloading"
+        ? `Downloading... ${Math.floor(playbackSource.progress * 100)}%`
+        : playbackSource.status === "ready"
+        ? "Ready to play"
+        : "Loading..."}
+    </Text>
+  );
 }

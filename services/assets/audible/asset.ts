@@ -53,13 +53,14 @@ export class AudibleAsset extends Asset {
   }
 
   // Audible files must be download as aax and converted to mp3 before playback
-  public async getPlaybackSource(): Promise<AudioSource> {
-    console.log("getPlaybackSource", this.asin);
+  public async getPlaybackSource({
+    onProgress,
+  }: {
+    onProgress: (ev: ProgressEvent) => void;
+  }): Promise<AudioSource> {
     const sourceUrl = await (this.downloadSourceMetadata.fileType === "aax"
       ? this.getAAXUrl()
       : this.getAAXCUrl());
-
-    console.log("sourceUrl", sourceUrl);
 
     const rawDirectory = new Directory(Paths.document, "raw");
     if (!rawDirectory.exists) {
@@ -76,14 +77,7 @@ export class AudibleAsset extends Asset {
       destination: rawFile,
     });
 
-    await downloader.download((progress) => {
-      log({
-        service: LOGGER_SERVICE_NAME,
-        level: "debug",
-        message: "getPlaybackSource: download progress",
-        data: { ...progress, asin: this.asin },
-      });
-    });
+    await downloader.download(onProgress);
 
     log({
       service: LOGGER_SERVICE_NAME,

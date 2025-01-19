@@ -25,7 +25,9 @@ export abstract class Asset {
     this.id = id;
   }
 
-  abstract getPlaybackSource(): Promise<AudioSource>;
+  abstract getPlaybackSource(p: {
+    onProgress: (ev: ProgressEvent) => void;
+  }): Promise<AudioSource>;
 }
 
 declare class AssetService<

@@ -30,7 +30,9 @@ export class Downloader {
     this.abortController = new AbortController();
   }
 
-  public async download(onProgress: ProgressCallback): Promise<void> {
+  public async download(
+    onProgress: (ev: ProgressEvent) => void
+  ): Promise<void> {
     try {
       await this.prepareDownload();
 
@@ -80,7 +82,9 @@ export class Downloader {
   }
 
   // Execute the download, resuming if possible
-  private async performDownload(onProgress: ProgressCallback): Promise<void> {
+  private async performDownload(
+    onProgress: (ev: ProgressEvent) => void
+  ): Promise<void> {
     let resumePosition = 0;
     if (this.rangeSupported && !this.force && this.destination.exists) {
       resumePosition = this.destination.size ?? 0;
@@ -99,20 +103,27 @@ export class Downloader {
       signal: this.abortController.signal,
     });
 
-    if (!response.ok) {
+    if (!response.ok || !response.body) {
       throw new Error(
         `Failed to download: ${response.status} ${response.statusText}`
       );
     }
 
-    if (!response.body) {
-      throw new Error("No response body received");
+    const progressInterval = setInterval(() => {
+      onProgress(
+        new ProgressEvent("download-progress", {
+          loaded: this.destination.size ?? 0,
+          total: this.totalSize,
+        })
+      );
+    }, 1000);
+    try {
+      await response.body.pipeTo(this.destination.writableStream(), {
+        signal: this.abortController.signal,
+      });
+    } finally {
+      clearInterval(progressInterval);
     }
-
-    const writableStream = this.destination.writableStream();
-    await response.body.pipeTo(writableStream, {
-      signal: this.abortController.signal,
-    });
 
     if (this.destination.size !== this.totalSize) {
       throw new Error(
