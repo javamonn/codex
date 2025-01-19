@@ -30,7 +30,13 @@
     "plugins": [
       "expo-router",
       "expo-audio",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-gradle-ext-vars",
+        {
+          "ffmpegKitPackage": "audio"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
