@@ -1,4 +1,8 @@
-import type { AVPlaybackSource } from "expo-av";
+import type { AudioSource } from "expo-audio";
+import { File, Paths, Directory } from "expo-file-system/next";
+
+import { log } from "@/services/logger";
+
 import { Asset } from "../types";
 
 import {
@@ -10,7 +14,10 @@ import {
   parseDownloadMetadata,
   DownloadSourceMetadata,
 } from "./library";
+import { Downloader } from "./downloader";
 import { Client } from "./device-registration";
+
+const LOGGER_SERVICE_NAME = "audible-service/asset";
 
 type InstanceParams = {
   // audible library api data
@@ -46,15 +53,49 @@ export class AudibleAsset extends Asset {
   }
 
   // Audible files must be download as aax and converted to mp3 before playback
-  public async getPlaybackSource(): Promise<AVPlaybackSource> {
+  public async getPlaybackSource(): Promise<AudioSource> {
+    console.log("getPlaybackSource", this.asin);
     const sourceUrl = await (this.downloadSourceMetadata.fileType === "aax"
       ? this.getAAXUrl()
       : this.getAAXCUrl());
 
+    console.log("sourceUrl", sourceUrl);
+
+    const rawDirectory = new Directory(Paths.document, "raw");
+    if (!rawDirectory.exists) {
+      rawDirectory.create();
+    }
+    const rawFile = new File(
+      rawDirectory,
+      `${this.asin}.${this.downloadSourceMetadata.fileType}`
+    );
+
+    const downloader = new Downloader({
+      client: this.client,
+      source: sourceUrl,
+      destination: rawFile,
+    });
+
+    await downloader.download((progress) => {
+      log({
+        service: LOGGER_SERVICE_NAME,
+        level: "debug",
+        message: "getPlaybackSource: download progress",
+        data: { ...progress, asin: this.asin },
+      });
+    });
+
+    log({
+      service: LOGGER_SERVICE_NAME,
+      level: "info",
+      message: "getPlaybackSource: downloaded",
+      data: { asin: this.asin },
+    });
+
     throw new Error("Not implemented");
   }
 
-  private async getAAXUrl(): Promise<string> {
+  private async getAAXUrl(): Promise<URL> {
     if (!this.isRemoteSourceAvailable) {
       throw new Error(`Remote source is not available for asin ${this.asin}`);
     }
@@ -79,18 +120,16 @@ export class AudibleAsset extends Asset {
       }
     );
 
-    const location = res.headers.get("location");
-    if (!location) {
-      throw new Error(`Could not get AAX URL for asin ${this.asin}`);
+    if (!res.ok) {
+      throw new Error(`Failed to get AAX url for asin ${this.asin}`);
     }
 
-    return location.replace(
-      "cds.audible.com",
-      `cds.audible.${this.client.getTLD()}`
+    return new URL(
+      res.url.replace("cds.audible.com", `cds.audible.${this.client.getTLD()}`)
     );
   }
 
-  private async getAAXCUrl(): Promise<string> {
+  private async getAAXCUrl(): Promise<URL> {
     throw new Error("Not implemented");
   }
 }

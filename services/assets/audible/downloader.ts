@@ -1,51 +1,133 @@
-import { File, Paths } from "expo-file-system/next";
+import { File } from "expo-file-system/next";
 
 import { Client } from "./device-registration";
 
-const MIN_STREAM_LENGTH = 10 * 1024 * 1024; // using stream mode if source is greater than
-const MIN_RESUME_FILE_LENGTH = 10 * 1024 * 1024; // keep resume file if file is greater than
-const RESUME_SUFFIX = ".resume";
-const TMP_SUFFIX = ".tmp";
-
-type Outcome = { type: "DestinationExists" };
-
-type DownloaderParams = {
-  source: string;
-  destination: File;
-  client: Client;
-  force: boolean;
-};
+export type ProgressCallback = (params: {
+  bytesDownloaded: number;
+  totalBytes: number;
+  percent: number;
+}) => void;
 
 export class Downloader {
-  client: Client;
-  source: string;
-  destination: File;
-  force: boolean;
+  private client: Client;
+  private source: URL;
+  private destination: File;
+  private force: boolean;
+  private rangeSupported: boolean = false;
+  private totalSize: number = 0;
+  private abortController: AbortController;
 
-  constructor({ source, destination, client, force }: DownloaderParams) {
-    this.source = source;
-    this.destination = destination;
-    this.client = client;
-    this.force = force;
+  constructor(params: {
+    client: Client;
+    source: URL;
+    destination: File;
+    force?: boolean;
+  }) {
+    this.client = params.client;
+    this.source = params.source;
+    this.destination = params.destination;
+    this.force = params.force ?? false;
+    this.abortController = new AbortController();
   }
 
-  private async getHeadResponse(): Promise<Response> {
-    const res = await this.client.fetch(new URL(this.source), {
+  public async download(onProgress: ProgressCallback): Promise<void> {
+    try {
+      await this.prepareDownload();
+
+      if (
+        !this.force &&
+        this.destination.exists &&
+        this.destination.size === this.totalSize
+      ) {
+        return; // File already completely downloaded
+      }
+
+      if (this.force) {
+        this.destination.delete();
+      }
+
+      this.destination.create();
+
+      await this.performDownload(onProgress);
+    } catch (error) {
+      await this.cleanup();
+      throw error;
+    }
+  }
+
+  // Check range support and get total size
+  private async prepareDownload(): Promise<void> {
+    const response = await this.client.fetch(this.source, {
       method: "HEAD",
+      signal: this.abortController.signal,
     });
 
-    if (res.url !== this.source) {
-      this.source = res.url;
+    if (!response.ok) {
+      throw new Error(
+        `Failed to prepare download: ${response.status} ${response.statusText}`
+      );
     }
 
-    return res;
+    this.totalSize = parseInt(
+      response.headers.get("content-length") || "0",
+      10
+    );
+    if (!this.totalSize) {
+      throw new Error("Could not determine file size");
+    }
+
+    this.rangeSupported = response.headers.get("accept-ranges") === "bytes";
   }
 
-  public async run(): Promise<Outcome> {
-    if (this.destination.exists && !this.force) {
-      return { type: "DestinationExists" } as Outcome;
+  // Execute the download, resuming if possible
+  private async performDownload(onProgress: ProgressCallback): Promise<void> {
+    let resumePosition = 0;
+    if (this.rangeSupported && !this.force && this.destination.exists) {
+      resumePosition = this.destination.size ?? 0;
+      if (resumePosition >= this.totalSize) {
+        resumePosition = 0; // Start over if something seems wrong
+      }
     }
 
-    const headRes = await this.getHeadResponse();
+    const headers: HeadersInit = {};
+    if (resumePosition > 0) {
+      headers["Range"] = `bytes=${resumePosition}-`;
+    }
+
+    const response = await this.client.fetch(this.source, {
+      headers,
+      signal: this.abortController.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to download: ${response.status} ${response.statusText}`
+      );
+    }
+
+    if (!response.body) {
+      throw new Error("No response body received");
+    }
+
+    const writableStream = this.destination.writableStream();
+    await response.body.pipeTo(writableStream, {
+      signal: this.abortController.signal,
+    });
+
+    if (this.destination.size !== this.totalSize) {
+      throw new Error(
+        `Downloaded file size does not match expected size, expected ${this.totalSize} bytes but got ${this.destination.size} bytes`
+      );
+    }
+  }
+
+  private async cleanup(): Promise<void> {
+    try {
+      if (this.destination.exists) {
+        this.destination.delete();
+      }
+    } catch (error) {
+      console.error("Failed to cleanup:", error);
+    }
   }
 }

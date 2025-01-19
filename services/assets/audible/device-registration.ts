@@ -7,6 +7,7 @@ import {
 } from "expo-crypto";
 import JSEncrypt from "jsencrypt";
 import sha256 from "crypto-js/sha256";
+import { fetch, FetchRequestInit } from "expo/fetch";
 
 import { log } from "@/services/logger";
 
@@ -62,14 +63,14 @@ export class Client {
 
   public fetch(
     url: URL,
-    options: RequestInit & { headers?: Record<string, string> }
+    options: FetchRequestInit & { headers?: Record<string, string> }
   ): Promise<Response> {
     const ts = new Date().toISOString();
     const data = [
       options.method ?? "GET",
       url.pathname + url.search,
-      (options.body ?? "").toString(),
       ts,
+      (options.body ?? "").toString(),
       this.adpToken,
     ].join("\n");
 
@@ -87,7 +88,7 @@ export class Client {
     options.headers["x-adp-alg"] = "SHA256withRSA:1.0";
     options.headers["x-adp-signature"] = `${signedData}:${ts}`;
 
-    return fetch(url, options);
+    return fetch(url.toString(), options);
   }
 
   public getTLD(): TLD {

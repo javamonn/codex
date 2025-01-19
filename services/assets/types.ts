@@ -1,5 +1,5 @@
 import type { EventEmitter } from "eventemitter3";
-import { AVPlaybackSource } from "expo-av";
+import type { AudioSource } from "expo-audio";
 
 // Base asset class. Playback source resolution will be service-specific.
 export abstract class Asset {
@@ -25,13 +25,8 @@ export abstract class Asset {
     this.id = id;
   }
 
-  abstract getPlaybackSource(): Promise<AVPlaybackSource>;
+  abstract getPlaybackSource(): Promise<AudioSource>;
 }
-
-export type GetAsssetParams = {
-  page: number;
-  limit: number;
-};
 
 declare class AssetService<
   InstanceParams = any,
@@ -46,7 +41,10 @@ declare class AssetService<
   getEmitter(): Omit<EventEmitter<EventTypes>, "emit">;
 
   // Get assets from the service.
-  getAssets(params: GetAsssetParams): Promise<Asset[]>;
+  getAssets(params: { page: number; limit: number }): Promise<Asset[]>;
+
+  // Get a single asset from the service.
+  getAsset(params: { id: string }): Promise<Asset | null>;
 }
 
 export type AssetServiceInterface<

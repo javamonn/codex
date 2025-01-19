@@ -6,6 +6,11 @@ type FormattedLog = {
 };
 
 export function log({ level, message, data, service }: FormattedLog) {
+  if (level === "error" && data && "error" in data) {
+    console.error(data.error);
+    delete data.error;
+  }
+
   console.log({
     level,
     message,

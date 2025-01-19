@@ -1,6 +1,6 @@
 import { EventEmitter } from "eventemitter3";
 
-import { AssetServiceInterface, Asset, GetAsssetParams } from "../types";
+import { AssetServiceInterface, Asset } from "../types";
 
 import {
   DeviceRegistration,
@@ -27,6 +27,7 @@ export const AudibleAssetsService: AssetServiceInterface<
 > = class {
   private deviceRegistration: DeviceRegistration;
   private emitter: EventEmitter<EventTypes>;
+  private assetCache: Map<string, Asset> = new Map();
 
   constructor(params: AudibleAssetsServiceParams | string) {
     if (typeof params === "string") {
@@ -67,7 +68,23 @@ export const AudibleAssetsService: AssetServiceInterface<
     return this.emitter;
   }
 
-  public async getAssets({ page, limit }: GetAsssetParams): Promise<Asset[]> {
+  public async getAsset({ id }: { id: string }): Promise<Asset | null> {
+    const asset = this.assetCache.get(id);
+    if (asset) {
+      return asset;
+    }
+
+    // TODO: Implement fetching a single asset, assume cache hit for now
+    throw new Error("unimplemented");
+  }
+
+  public async getAssets({
+    page,
+    limit,
+  }: {
+    page: number;
+    limit: number;
+  }): Promise<Asset[]> {
     const client = this.deviceRegistration.getClient();
     const libraryItems = await getLibraryPage({
       client,
@@ -83,13 +100,17 @@ export const AudibleAssetsService: AssetServiceInterface<
       limit,
     });
 
-    return libraryItems.map(
-      (libraryItem) =>
-        new AudibleAsset({
-          libraryItem,
-          client,
-        })
-    );
+    return libraryItems.reduce<AudibleAsset[]>((acc, libraryItem) => {
+      const asset = new AudibleAsset({
+        libraryItem,
+        client,
+      });
+
+      this.assetCache.set(asset.id, asset);
+
+      acc.push(asset);
+      return acc;
+    }, []);
   }
 };
 
