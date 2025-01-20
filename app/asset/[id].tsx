@@ -42,6 +42,7 @@ const getQueryOptions = ({
 type PlaybackSourceState =
   | { status: "initial" }
   | { status: "downloading"; progress: number }
+  | { status: "processing"; progress: number }
   | { status: "ready"; source: AudioSource };
 
 export default function AssetScreen() {
@@ -64,6 +65,11 @@ export default function AssetScreen() {
               case "download-progress":
                 setPlaybackSource({
                   status: "downloading",
+                  progress: ev.loaded / ev.total,
+                });
+              case "conversion-progress":
+                setPlaybackSource({
+                  status: "processing",
                   progress: ev.loaded / ev.total,
                 });
                 break;

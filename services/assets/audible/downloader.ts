@@ -12,8 +12,6 @@ export class Downloader {
   private source: URL;
   private destination: File;
   private force: boolean;
-  private rangeSupported: boolean = false;
-  private totalSize: number = 0;
   private abortController: AbortController;
 
   constructor(params: {
@@ -25,18 +23,19 @@ export class Downloader {
     this.client = params.client;
     this.source = params.source;
     this.destination = params.destination;
-    this.force = params.force ?? true;
+    this.force = params.force ?? false;
     this.abortController = new AbortController();
   }
 
   public async execute(onProgress: (ev: ProgressEvent) => void): Promise<void> {
+    let progressInterval: NodeJS.Timeout | null = null;
     try {
-      await this.prepareDownload();
+      const totalSize = await this.getTotalSize();
 
       if (
         !this.force &&
         this.destination.exists &&
-        this.destination.size === this.totalSize
+        this.destination.size === totalSize
       ) {
         return; // File already completely downloaded
       }
@@ -45,17 +44,29 @@ export class Downloader {
         this.destination.delete();
       }
 
-      this.destination.create();
+      // Poll destination evey size to update progress
+      progressInterval = setInterval(() => {
+        onProgress(
+          new ProgressEvent("download-progress", {
+            loaded: this.destination.size ?? 0,
+            total: totalSize,
+          })
+        );
+      }, 1000);
 
-      await this.performDownload(onProgress);
+      await File.downloadFileAsync(this.source.toString(), this.destination);
     } catch (error) {
       await this.cleanup();
       throw error;
+    } finally {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
     }
   }
 
-  // Check range support and get total size
-  private async prepareDownload(): Promise<void> {
+  // Get total size
+  private async getTotalSize(): Promise<number> {
     const response = await this.client.fetch(this.source, {
       method: "HEAD",
       signal: this.abortController.signal,
@@ -63,84 +74,11 @@ export class Downloader {
 
     if (!response.ok) {
       throw new Error(
-        `Failed to prepare download: ${response.status} ${response.statusText}`
+        `HEAD @ source failed: ${response.status} ${response.statusText}`
       );
     }
 
-    this.totalSize = parseInt(
-      response.headers.get("content-length") || "0",
-      10
-    );
-    if (!this.totalSize) {
-      throw new Error("Could not determine file size");
-    }
-
-    this.rangeSupported = response.headers.get("accept-ranges") === "bytes";
-  }
-
-  // Execute the download, resuming if possible
-  private async performDownload(
-    onProgress: (ev: ProgressEvent) => void
-  ): Promise<void> {
-    let resumePosition = 0;
-    if (this.rangeSupported && !this.force && this.destination.exists) {
-      resumePosition = this.destination.size ?? 0;
-      if (resumePosition >= this.totalSize) {
-        resumePosition = 0; // Start over if something seems wrong
-      }
-    }
-
-    const headers: HeadersInit = {};
-    if (resumePosition > 0) {
-      headers["Range"] = `bytes=${resumePosition}-`;
-    }
-
-    const response = await this.client.fetch(this.source, {
-      headers,
-      signal: this.abortController.signal,
-    });
-
-    if (!response.ok || !response.body) {
-      throw new Error(
-        `Failed to download: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const progressInterval = setInterval(() => {
-      onProgress(
-        new ProgressEvent("download-progress", {
-          loaded: this.destination.size ?? 0,
-          total: this.totalSize,
-        })
-      );
-    }, 1000);
-    let writableStream = null;
-    try {
-      writableStream = this.destination.writableStream();
-      await response.body.pipeTo(writableStream, {
-        signal: this.abortController.signal,
-      });
-
-      await this.postprocess(response, this.destination);
-    } finally {
-      if (writableStream) {
-        writableStream.close();
-      }
-      clearInterval(progressInterval);
-    }
-
-    if (this.destination.size !== this.totalSize) {
-      throw new Error(
-        `Downloaded file size does not match expected size, expected ${this.totalSize} bytes but got ${this.destination.size} bytes`
-      );
-    }
-  }
-
-  private async postprocess(response: Response, file: File): Promise<void> {
-    console.log("md5", file.md5);
-    console.log("res", response);
-    console.log("headers", response.headers);
-    console.log("target size", file.size);
+    return parseInt(response.headers.get("content-length") || "0", 10);
   }
 
   private async cleanup(): Promise<void> {

@@ -11,7 +11,7 @@ import { log } from "@/services/logger";
 import { Client } from "./device-registration";
 import { ProgressEvent } from "./progress-event";
 
-FFmpegKitConfig.setLogLevel(Level.AV_LOG_DEBUG);
+FFmpegKitConfig.setLogLevel(Level.AV_LOG_INFO);
 
 const LOG_SERVICE_NAME = "audible/converter";
 
@@ -78,6 +78,7 @@ export class Converter {
       this.source.uri
     } -c copy ${this.destination.uri}`;
     console.log("cmd", cmd);
+    const totalSize = this.source.size;
     const session = await FFmpegKit.executeAsync(
       cmd,
       (session) => {
@@ -97,12 +98,12 @@ export class Converter {
         });
       },
       (stats) => {
-        log({
-          service: LOG_SERVICE_NAME,
-          level: "info",
-          message: "Conversion stats",
-          data: stats,
-        });
+        onProgress(
+          new ProgressEvent("conversion-progress", {
+            loaded: stats.getSize(),
+            total: totalSize ?? 0,
+          })
+        );
       }
     );
 
