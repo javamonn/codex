@@ -58,10 +58,10 @@ export const AudibleAssetsService: AssetServiceInterface<
     this.emitter = new EventEmitter();
   }
 
-  public toJSON(): string {
-    return JSON.stringify({
+  public toJSON() {
+    return {
       deviceRegistration: this.deviceRegistration,
-    });
+    };
   }
 
   public getEmitter(): Omit<typeof this.emitter, "emit"> {

@@ -2,6 +2,9 @@
 
 buildscript {
     ext {
+// @generated begin expo-gradle-ext-vars - expo prebuild (DO NOT MODIFY) sync-70dc1f91418d0a225e2827540784f998e0d9362c
+	ffmpegKitPackage = "audio"
+// @generated end expo-gradle-ext-vars
         buildToolsVersion = findProperty('android.buildToolsVersion') ?: '35.0.0'
         minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')

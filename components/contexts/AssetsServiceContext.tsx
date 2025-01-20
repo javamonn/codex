@@ -12,10 +12,13 @@ import { InteractionManager } from "react-native";
 
 import { log } from "@/services/logger";
 import { AudibleAssetsService } from "@/services/assets/audible";
+import { assetServiceContextServiceKey } from "@/utils/cache-key";
 
 export type Services = {
   audible: InstanceType<typeof AudibleAssetsService> | null;
 };
+
+const AUDIBLE_SERVICE_KEY = assetServiceContextServiceKey("audible");
 
 type OnRegisterService<T extends keyof Services> = (
   id: T,
@@ -27,7 +30,6 @@ type ContextData = {
   onInitializeServices: () => void;
 };
 
-const KEY_PREFIX = "AssetsServiceContext";
 const LOGGER_SERVICE_NAME = "AssetsServiceContext";
 
 const Context = createContext<ContextData>({
@@ -48,10 +50,10 @@ function handlePersistService<T extends keyof Services>(
 ): Promise<void> {
   return new Promise((resolve) => {
     InteractionManager.runAfterInteractions({
-      name: `${KEY_PREFIX}:persist:${id}`,
+      name: `handlePersistService:${id}`,
       gen: async () => {
         await AsyncStorage.setItem(
-          `${KEY_PREFIX}:${id}`,
+          assetServiceContextServiceKey(id),
           JSON.stringify(service)
         );
 
@@ -66,15 +68,15 @@ function maybeHydrateServices<T extends keyof Services>(
 ): Promise<Partial<Services>> {
   return new Promise((resolve) => {
     InteractionManager.runAfterInteractions({
-      name: `${KEY_PREFIX}:hydrate`,
+      name: `maybeHydrateServices:hydrate`,
       gen: async () => {
         const serialized = await AsyncStorage.multiGet(
-          serviceIds.map((id) => `${KEY_PREFIX}:${id}`)
+          serviceIds.map((id) => assetServiceContextServiceKey(id))
         );
         const hydratedServices = serialized.reduce((acc, [key, value]) => {
           if (value) {
             switch (key) {
-              case `${KEY_PREFIX}:audible`: {
+              case AUDIBLE_SERVICE_KEY: {
                 try {
                   acc.audible = new AudibleAssetsService(value);
 
@@ -87,7 +89,7 @@ function maybeHydrateServices<T extends keyof Services>(
                   log({
                     level: "error",
                     message: `maybeHydrateServices: audible`,
-                    data: e as Error,
+                    data: { error: e },
                     service: LOGGER_SERVICE_NAME,
                   });
                 }

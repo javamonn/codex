@@ -1,12 +1,11 @@
 import { File } from "expo-file-system/next";
 
-import { Client } from "./device-registration";
+import { log } from "@/services/logger";
 
-export type ProgressCallback = (params: {
-  bytesDownloaded: number;
-  totalBytes: number;
-  percent: number;
-}) => void;
+import { Client } from "./device-registration";
+import { ProgressEvent } from "./progress-event";
+
+const LOG_SERVICE_NAME = "audible/downloader";
 
 export class Downloader {
   private client: Client;
@@ -26,13 +25,11 @@ export class Downloader {
     this.client = params.client;
     this.source = params.source;
     this.destination = params.destination;
-    this.force = params.force ?? false;
+    this.force = params.force ?? true;
     this.abortController = new AbortController();
   }
 
-  public async download(
-    onProgress: (ev: ProgressEvent) => void
-  ): Promise<void> {
+  public async execute(onProgress: (ev: ProgressEvent) => void): Promise<void> {
     try {
       await this.prepareDownload();
 
@@ -44,7 +41,7 @@ export class Downloader {
         return; // File already completely downloaded
       }
 
-      if (this.force) {
+      if (this.force && this.destination.exists) {
         this.destination.delete();
       }
 
@@ -117,11 +114,18 @@ export class Downloader {
         })
       );
     }, 1000);
+    let writableStream = null;
     try {
-      await response.body.pipeTo(this.destination.writableStream(), {
+      writableStream = this.destination.writableStream();
+      await response.body.pipeTo(writableStream, {
         signal: this.abortController.signal,
       });
+
+      await this.postprocess(response, this.destination);
     } finally {
+      if (writableStream) {
+        writableStream.close();
+      }
       clearInterval(progressInterval);
     }
 
@@ -132,13 +136,25 @@ export class Downloader {
     }
   }
 
+  private async postprocess(response: Response, file: File): Promise<void> {
+    console.log("md5", file.md5);
+    console.log("res", response);
+    console.log("headers", response.headers);
+    console.log("target size", file.size);
+  }
+
   private async cleanup(): Promise<void> {
     try {
       if (this.destination.exists) {
         this.destination.delete();
       }
     } catch (error) {
-      console.error("Failed to cleanup:", error);
+      log({
+        service: LOG_SERVICE_NAME,
+        level: "error",
+        message: "Failed to cleanup files",
+        data: { error, destinationUri: this.destination.uri },
+      });
     }
   }
 }

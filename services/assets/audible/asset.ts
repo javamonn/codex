@@ -3,6 +3,7 @@ import { File, Paths, Directory } from "expo-file-system/next";
 
 import { log } from "@/services/logger";
 
+import { ProgressEvent } from "./progress-event";
 import { Asset } from "../types";
 
 import {
@@ -15,6 +16,7 @@ import {
   DownloadSourceMetadata,
 } from "./library";
 import { Downloader } from "./downloader";
+import { Converter } from "./converter";
 import { Client } from "./device-registration";
 
 const LOGGER_SERVICE_NAME = "audible-service/asset";
@@ -62,23 +64,20 @@ export class AudibleAsset extends Asset {
       ? this.getAAXUrl()
       : this.getAAXCUrl());
 
-    const rawDirectory = new Directory(Paths.document, "raw");
-    if (!rawDirectory.exists) {
-      rawDirectory.create();
+    const assetsDir = new Directory(Paths.document, "audible-assets");
+    if (!assetsDir.exists) {
+      assetsDir.create();
     }
     const rawFile = new File(
-      rawDirectory,
+      assetsDir,
       `${this.asin}.${this.downloadSourceMetadata.fileType}`
     );
-
     const downloader = new Downloader({
       client: this.client,
       source: sourceUrl,
       destination: rawFile,
     });
-
-    await downloader.download(onProgress);
-
+    await downloader.execute(onProgress);
     log({
       service: LOGGER_SERVICE_NAME,
       level: "info",
@@ -86,7 +85,21 @@ export class AudibleAsset extends Asset {
       data: { asin: this.asin },
     });
 
-    throw new Error("Not implemented");
+    const convertedFile = new File(assetsDir, `${this.asin}.m4b`);
+    const converter = new Converter({
+      client: this.client,
+      source: rawFile,
+      destination: convertedFile,
+    });
+    await converter.execute(onProgress);
+    log({
+      service: LOGGER_SERVICE_NAME,
+      level: "info",
+      message: "getPlaybackSource: converted",
+      data: { asin: this.asin },
+    });
+
+    return { uri: convertedFile.uri };
   }
 
   private async getAAXUrl(): Promise<URL> {
@@ -115,6 +128,19 @@ export class AudibleAsset extends Asset {
     );
 
     if (!res.ok) {
+      let resBody = "";
+      try {
+        resBody = await res.text();
+      } catch (_) {
+        /* noop */
+      }
+      log({
+        service: LOGGER_SERVICE_NAME,
+        level: "error",
+        message: "getAAXUrl: failed",
+        data: { asin: this.asin, status: res.status, body: resBody },
+      });
+
       throw new Error(`Failed to get AAX url for asin ${this.asin}`);
     }
 

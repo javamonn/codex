@@ -8,9 +8,12 @@ import {
 import JSEncrypt from "jsencrypt";
 import sha256 from "crypto-js/sha256";
 import { fetch, FetchRequestInit } from "expo/fetch";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { log } from "@/services/logger";
+import { audibleActivationBytesKey } from "@/utils/cache-key";
 
+import { getActivationBytes } from "./activation-bytes";
 import {
   CountryCode,
   Locale,
@@ -42,6 +45,7 @@ export type OAuthParams = {
 const LOGGER_SERVICE_NAME = "audible-service/device-registration";
 
 export class Client {
+  activationBytes: string | null = null;
   adpToken: string;
   encrypt: JSEncrypt;
   tld: TLD;
@@ -94,6 +98,26 @@ export class Client {
   public getTLD(): TLD {
     return this.tld;
   }
+
+  public async getActivationBytes(): Promise<string> {
+    // attempt fetch from cache
+    if (!this.activationBytes) {
+      const cachedActivationBytes = await AsyncStorage.getItem(
+        audibleActivationBytesKey
+      );
+      if (cachedActivationBytes) {
+        this.activationBytes = cachedActivationBytes;
+      }
+    }
+
+    // fetch from audible
+    if (!this.activationBytes) {
+      const activationBytes = await getActivationBytes({ client: this });
+      this.activationBytes = activationBytes;
+    }
+
+    return this.activationBytes;
+  }
 }
 
 // An audible device registration is required for authenticating
@@ -121,7 +145,7 @@ export class DeviceRegistration {
   }
 
   public toJSON() {
-    return JSON.stringify(this.params);
+    return this.params
   }
 
   // Get the source and oauth params required for starting the
