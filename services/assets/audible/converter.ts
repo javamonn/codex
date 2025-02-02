@@ -79,59 +79,64 @@ export class Converter {
     } -c copy ${this.destination.uri}`;
     console.log("cmd", cmd);
     const totalSize = this.source.size;
-    const session = await FFmpegKit.executeAsync(
-      cmd,
-      (session) => {
-        log({
-          service: LOG_SERVICE_NAME,
-          level: "info",
-          message: "Conversion complete",
-          data: { id: session.getSessionId() },
-        });
-      },
-      (l) => {
-        log({
-          service: LOG_SERVICE_NAME,
-          level: "info",
-          message: "Conversion log",
-          data: { log: l.getMessage(), id: l.getSessionId() },
-        });
-      },
-      (stats) => {
-        onProgress(
-          new ProgressEvent("conversion-progress", {
-            loaded: stats.getSize(),
-            total: totalSize ?? 0,
-          })
-        );
-      }
-    );
 
-    const returnCode = await session.getReturnCode();
-    if (ReturnCode.isSuccess(returnCode)) {
-      log({
-        service: LOG_SERVICE_NAME,
-        level: "info",
-        message: "Conversion successful",
-      });
+    return new Promise((resolve, reject) => {
+      FFmpegKit.executeAsync(
+        cmd,
+        (session) => {
+          log({
+            service: LOG_SERVICE_NAME,
+            level: "info",
+            message: "Conversion complete",
+            data: { id: session.getSessionId() },
+          });
 
-      tmpDestination.move(this.destination);
-    } else if (ReturnCode.isCancel(returnCode)) {
-      log({
-        service: LOG_SERVICE_NAME,
-        level: "info",
-        message: "Conversion cancelled",
-      });
-    } else {
-      log({
-        service: LOG_SERVICE_NAME,
-        level: "error",
-        message: "Conversion failed",
-        data: { returnCode },
-      });
+          session.getReturnCode().then((returnCode) => {
+            if (ReturnCode.isSuccess(returnCode)) {
+              log({
+                service: LOG_SERVICE_NAME,
+                level: "info",
+                message: "Conversion successful",
+              });
 
-      throw new Error("Conversion failed");
-    }
+              tmpDestination.move(this.destination);
+              resolve();
+            } else if (ReturnCode.isCancel(returnCode)) {
+              log({
+                service: LOG_SERVICE_NAME,
+                level: "info",
+                message: "Conversion cancelled",
+              });
+            } else {
+              log({
+                service: LOG_SERVICE_NAME,
+                level: "error",
+                message: "Conversion failed",
+                data: { returnCode },
+              });
+
+              reject(new Error("Conversion failed"));
+            }
+          });
+        },
+        (l) => {
+          log({
+            service: LOG_SERVICE_NAME,
+            level: "info",
+            message: "Conversion log",
+            data: { log: l.getMessage(), id: l.getSessionId() },
+          });
+        },
+        (stats) => {
+          onProgress(
+            new ProgressEvent("conversion-progress", {
+              loaded: stats.getSize(),
+              total: totalSize ?? 0,
+            })
+          );
+        }
+      );
+    });
   }
 
   private async cleanup(): Promise<void> {
