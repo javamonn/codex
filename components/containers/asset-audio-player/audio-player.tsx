@@ -1,12 +1,55 @@
+import { useEffect, useRef } from "react";
 import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { View, Pressable, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-export const AudioPlayer: React.FC<{ source: AudioSource }> = ({ source }) => {
-  console.log("AudioPlayer with source", source);
+import { log } from "@/services/logger";
+import { useTranscriberServiceContext } from "@/components/contexts/TranscriberContext";
 
+const LOGGER_SERVICE_NAME = "AudioPlayer";
+
+export const AudioPlayer: React.FC<{ source: AudioSource }> = ({ source }) => {
   const player = useAudioPlayer(source);
   const playerStatus = useAudioPlayerStatus(player);
+  const transcriberAbortController = useRef(new AbortController());
+  const { transcriber } = useTranscriberServiceContext();
+
+  useEffect(() => {
+    return () => {
+      // Stop any in-progress transcription
+      transcriberAbortController.current.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const maybeUri = (source as { uri?: string } | null)?.uri;
+    if (!maybeUri) {
+      log({
+        service: LOGGER_SERVICE_NAME,
+        message: "Skipping transcriber execution, no URI provided",
+        data: { source },
+        level: "warn",
+      });
+      return;
+    }
+
+    transcriber
+      .exec({
+        uri: maybeUri,
+        abortSignal: transcriberAbortController.current.signal,
+        transcribeOptions: {
+          onNewSegments: (segments) => {
+            console.log("new transcribe segments", segments);
+          },
+          language: "en",
+          duration: 60 * 1000,
+          offset: 0,
+        },
+      })
+      .then((result) => {
+        console.log("transcribe result", result);
+      });
+  }, [source]);
 
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);

@@ -7,6 +7,7 @@ import * as SplashScreen from "expo-splash-screen";
 import "react-native-reanimated";
 
 import { AssetServiceContextProvider } from "@/components/contexts/AssetsServiceContext";
+import { TranscriberServiceProvider } from "@/components/contexts/TranscriberContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -32,16 +33,18 @@ export default function RootLayout() {
       initializeOnMount
       onInitialized={() => setAssetServiceInitialized(true)}
     >
-      <ThemeProvider value={DarkTheme}>
-        <QueryClientProvider client={queryClient}>
-          {initialized && (
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-          )}
-        </QueryClientProvider>
-      </ThemeProvider>
+      <TranscriberServiceProvider>
+        <ThemeProvider value={DarkTheme}>
+          <QueryClientProvider client={queryClient}>
+            {initialized && (
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+            )}
+          </QueryClientProvider>
+        </ThemeProvider>
+      </TranscriberServiceProvider>
     </AssetServiceContextProvider>
   );
 }

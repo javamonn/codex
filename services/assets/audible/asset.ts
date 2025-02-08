@@ -16,7 +16,7 @@ import {
   DownloadSourceMetadata,
 } from "./library";
 import { Downloader } from "./downloader";
-import { Converter } from "./converter";
+import { CONVERSION_TARGET_FORMAT, Converter } from "./converter";
 import { Client } from "./device-registration";
 
 const LOGGER_SERVICE_NAME = "audible-service/asset";
@@ -85,7 +85,10 @@ export class AudibleAsset extends Asset {
       data: { asin: this.asin },
     });
 
-    const convertedFile = new File(assetsDir, `${this.asin}.m4b`);
+    const convertedFile = new File(
+      assetsDir,
+      `${this.asin}.${CONVERSION_TARGET_FORMAT}`
+    );
     const converter = new Converter({
       client: this.client,
       source: rawFile,

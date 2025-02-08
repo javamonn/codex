@@ -15,6 +15,8 @@ FFmpegKitConfig.setLogLevel(Level.AV_LOG_INFO);
 
 const LOG_SERVICE_NAME = "audible/converter";
 
+export const CONVERSION_TARGET_FORMAT = "wav";
+
 export class Converter {
   private client: Client;
   private source: File;
@@ -31,7 +33,7 @@ export class Converter {
     this.client = params.client;
     this.source = params.source;
     this.destination = params.destination;
-    this.force = params.force ?? false;
+    this.force = params.force ?? true;
   }
 
   public async execute(onProgress: (ev: ProgressEvent) => void): Promise<void> {
@@ -44,11 +46,13 @@ export class Converter {
         throw new Error(`Source file does not exist at ${this.source.uri}`);
       }
 
-      if (this.force) {
+      if (this.force && this.destination.exists) {
         this.destination.delete();
       }
 
+      console.log("before performConversion");
       await this.performConversion(onProgress);
+      console.log("after performConversion");
     } catch (error) {
       await this.cleanup();
       throw error;
@@ -62,11 +66,12 @@ export class Converter {
 
     // Setup a tmp file used for the in-progress conversion. Moved to
     // intended destination on success.
-    const tmpDestination = new File(`${this.destination.uri}-tmp.m4b`);
+    const tmpDestination = new File(
+      `${this.destination.uri}.tmp.${CONVERSION_TARGET_FORMAT}`
+    );
     if (tmpDestination.exists) {
       tmpDestination.delete();
     }
-    tmpDestination.create();
 
     log({
       service: LOG_SERVICE_NAME,
@@ -74,9 +79,13 @@ export class Converter {
       message: "Starting conversion",
     });
 
-    const cmd = `-activation_bytes ${activationBytes.toUpperCase()} -i ${
+    // TODO: convert to m4b for playback and wav chunks for transcription
+    const CHUNK_OPTS = "-ss 0 -t 600";
+    const WAV_OPTS = "-ar 16000 -ac 1 -c:a pcm_s16le";
+    const M4B_OPTS = "-c copy";
+    const cmd = `-activation_bytes ${activationBytes.toUpperCase()} ${CHUNK_OPTS} -i ${
       this.source.uri
-    } -c copy ${this.destination.uri}`;
+    } ${WAV_OPTS} ${tmpDestination.uri} `;
     console.log("cmd", cmd);
     const totalSize = this.source.size;
 
@@ -99,14 +108,17 @@ export class Converter {
                 message: "Conversion successful",
               });
 
+              console.log("moving file begin");
               tmpDestination.move(this.destination);
-              resolve();
+              console.log("moving file complete");
+              resolve(void 0);
             } else if (ReturnCode.isCancel(returnCode)) {
               log({
                 service: LOG_SERVICE_NAME,
                 level: "info",
                 message: "Conversion cancelled",
               });
+              resolve(void 0);
             } else {
               log({
                 service: LOG_SERVICE_NAME,
