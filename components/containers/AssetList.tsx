@@ -1,92 +1,142 @@
-import { useMemo } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { useRef, useCallback, useEffect } from "react";
+import { StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
-import { useInfiniteQuery, infiniteQueryOptions } from "@tanstack/react-query";
+import { FlashList, ListRenderItem, ViewToken } from "@shopify/flash-list";
 
-import { log } from "@/services/logger";
-
-import {
-  useAssetServiceContext,
-  Services as AssetServices,
-} from "@/components/contexts/AssetsServiceContext";
 import { Asset } from "@/services/assets/types";
 import { Text, Pressable } from "@/components/primitives";
 
-const LOGGER_SERVICE_NAME = "containers/AssetList";
-const ASSETS_PAGE_LIMIT = 20;
-
-function AssetListItem({ asset }: { asset: Asset }) {
+const AssetListItem: React.FC<{
+  asset: Asset;
+  onImageDisplay?: (id: string) => void;
+}> = ({ asset, onImageDisplay }) => {
   return (
     <Link href={`/asset/${asset.id}`} asChild push>
       <Pressable style={styles.audioItemContainer}>
-        <Image source={{ uri: asset.imageUrl }} style={styles.audioItemImage} />
+        <Image
+          source={{ uri: asset.imageUrl }}
+          style={styles.audioItemImage}
+          recyclingKey={asset.id}
+          onDisplay={
+            onImageDisplay ? () => onImageDisplay(asset.id) : undefined
+          }
+        />
         <Text color="primary" size="md">
           {asset.title}
         </Text>
       </Pressable>
     </Link>
   );
-}
+};
 
-function Separator() {
+const Separator: React.FC = () => {
   return <View style={styles.separator} />;
-}
+};
 
-export const getQueryOptions = ({
-  assetServices,
-}: {
-  assetServices: AssetServices;
-}) =>
-  infiniteQueryOptions({
-    queryKey: ["assets"],
-    retry: false,
-    queryFn: async (ctx) => {
-      try {
-        const data = await assetServices.audible?.getAssets({
-          page: ctx.pageParam,
-          limit: ASSETS_PAGE_LIMIT,
-        });
+export const AssetList: React.FC<{
+  assets: Asset[] | undefined;
+  onLoad: (() => void) | undefined;
+  pageSize: number;
+}> = ({ assets, onLoad, pageSize }) => {
+  // If onLoad is not provided, we don't need to track the initial image display
+  const haveCalledOnLoad = useRef(!Boolean(onLoad));
+  const initialImageDisplayed = useRef<{
+    [id: string]: { isImageDisplayed: boolean; isViewable: boolean };
+  }>({});
 
-        return data ?? [];
-      } catch (err) {
-        log({
-          service: LOGGER_SERVICE_NAME,
-          message: "Failed to fetch assets",
-          data: { error: err, page: ctx.pageParam },
-          level: "error",
-        });
-        throw err;
-      }
-    },
-    initialPageParam: 1,
-    getNextPageParam: (lastPage, pages) =>
-      lastPage?.length === ASSETS_PAGE_LIMIT ? pages.length : undefined,
-  });
+  // Prefetch the first page of asset images 
+  useEffect(() => {
+    if (!assets) {
+      return;
+    }
 
-export default function AssetList() {
-  const { services: assetServices } = useAssetServiceContext();
+    Image.prefetch(assets.slice(0, pageSize).map((asset) => asset.imageUrl));
+  }, []);
 
-  const queryOptions = useMemo(
-    () => getQueryOptions({ assetServices }),
-    [assetServices]
+  // Call on load if all viewable images have been displayed
+  const maybeCallOnLoad = useCallback(() => {
+    if (
+      !onLoad ||
+      haveCalledOnLoad.current ||
+      Object.values(initialImageDisplayed.current).some(
+        (image) => image.isViewable && !image.isImageDisplayed
+      )
+    ) {
+      return;
+    }
+
+    haveCalledOnLoad.current = true;
+    initialImageDisplayed.current = {};
+    onLoad();
+  }, [onLoad]);
+
+  const handleImageDisplay = useCallback((id: string) => {
+    if (!onLoad || haveCalledOnLoad.current) {
+      return;
+    }
+
+    const i = initialImageDisplayed.current[id];
+    if (i) {
+      i.isImageDisplayed = true;
+    } else {
+      initialImageDisplayed.current[id] = {
+        isImageDisplayed: true,
+        isViewable: false,
+      };
+    }
+
+    maybeCallOnLoad();
+  }, []);
+
+  const renderItem: ListRenderItem<Asset> = useCallback(
+    ({ item: asset }) => (
+      <AssetListItem
+        asset={asset}
+        onImageDisplay={
+          haveCalledOnLoad.current ? undefined : handleImageDisplay
+        }
+      />
+    ),
+    [handleImageDisplay]
   );
+  const keyExtractor = useCallback((item: Asset) => item.id, []);
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (!onLoad || haveCalledOnLoad.current) {
+        return;
+      }
 
-  const { data } = useInfiniteQuery(queryOptions);
-  const assetItems = useMemo(
-    () => data?.pages?.flatMap((page) => page),
-    [data]
+      viewableItems.forEach(({ key }) => {
+        const i = initialImageDisplayed.current[key];
+        if (i) {
+          i.isViewable = true;
+        } else {
+          initialImageDisplayed.current[key] = {
+            isImageDisplayed: false,
+            isViewable: true,
+          };
+        }
+      });
+
+      maybeCallOnLoad();
+    },
+    []
   );
 
   return (
-    <FlatList
-      data={assetItems}
-      renderItem={({ item: asset }) => <AssetListItem asset={asset} />}
-      keyExtractor={(item) => item.id}
+    <FlashList
+      data={assets}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      onViewableItemsChanged={
+        haveCalledOnLoad.current ? undefined : handleViewableItemsChanged
+      }
+      estimatedItemSize={60}
       ItemSeparatorComponent={Separator}
     />
   );
-}
+};
 
 const styles = StyleSheet.create({
   audioItemContainer: {

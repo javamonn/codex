@@ -2,7 +2,6 @@ import { assertResponseStatus } from "@/utils";
 import { log } from "@/services/logger";
 
 import { Client } from "./device-registration";
-import { TLD } from "./constants";
 
 const LOGGER_SERVICE_NAME = "audible-service/library";
 

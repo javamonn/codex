@@ -5,7 +5,6 @@ import {
   useCallback,
   useEffect,
   useContext,
-  useRef,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { InteractionManager } from "react-native";
@@ -28,6 +27,7 @@ type ContextData = {
   services: Services;
   onRegisterService: OnRegisterService<keyof Services>;
   onInitializeServices: () => void;
+  isInitialized: boolean;
 };
 
 const LOGGER_SERVICE_NAME = "AssetsServiceContext";
@@ -36,6 +36,7 @@ const Context = createContext<ContextData>({
   services: {
     audible: null,
   },
+  isInitialized: false,
   onRegisterService: (_id, _service) => {
     throw new Error("registerService not implemented");
   },
@@ -110,7 +111,7 @@ function maybeHydrateServices<T extends keyof Services>(
   });
 }
 
-export const AssetServiceContextProvider = ({
+export const AssetServiceProvider = ({
   children,
   onInitialized,
   initializeOnMount,
@@ -122,7 +123,7 @@ export const AssetServiceContextProvider = ({
   const [audible, setAudible] = useState<InstanceType<
     typeof AudibleAssetsService
   > | null>(null);
-  const hasInitializedServices = useRef(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Registers a new AssetService. This should be called once for each
   // service when first connected.
@@ -160,7 +161,7 @@ export const AssetServiceContextProvider = ({
       service: LOGGER_SERVICE_NAME,
     });
 
-    if (hasInitializedServices.current) {
+    if (isInitialized) {
       log({
         level: "warn",
         message: "onInitializeServices: called more than once",
@@ -174,9 +175,9 @@ export const AssetServiceContextProvider = ({
       setAudible(hydratedServices.audible);
     }
 
-    hasInitializedServices.current = true;
+    setIsInitialized(true);
     onInitialized();
-  }, [setAudible, onInitialized]);
+  }, [setAudible, onInitialized, isInitialized, setIsInitialized]);
 
   useEffect(() => {
     if (initializeOnMount) {
@@ -189,10 +190,11 @@ export const AssetServiceContextProvider = ({
       services: {
         audible,
       },
+      isInitialized,
       onRegisterService,
       onInitializeServices,
     };
-  }, [audible, onRegisterService, onInitializeServices]);
+  }, [audible, onRegisterService, onInitializeServices, isInitialized]);
 
   return <Context.Provider value={contextData}>{children}</Context.Provider>;
 };
