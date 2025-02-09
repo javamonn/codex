@@ -35,7 +35,12 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-audio",
-    "expo-font",
+    [
+      "expo-font",
+      {
+        fonts: ["./assets/fonts/SpaceMono-Regular.ttf"],
+      },
+    ],
     [
       "expo-gradle-ext-vars",
       {

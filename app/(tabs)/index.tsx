@@ -68,6 +68,7 @@ const Library: React.FC = () => {
         <AssetList
           assets={assets}
           onLoad={SplashScreen.isHidden ? undefined : handleLoad}
+          pageSize={ASSETS_PAGE_LIMIT}
         />
       )}
     </SafeAreaView>

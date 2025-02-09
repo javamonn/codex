@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ThemeProvider } from "@react-navigation/native";
 import { setBackgroundColorAsync } from "expo-system-ui";
-import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
@@ -21,25 +20,13 @@ const queryClient = new QueryClient();
 export default function RootLayout() {
   const theme = useTheme();
 
-  const [isFontsLoaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-  const [isAssetServiceInitialized, setAssetServiceInitialized] =
-    useState(false);
-
-  // Defer mounting the navigation stack until required providers and assets are ready
-  const initialized = isFontsLoaded && isAssetServiceInitialized;
-
   // Set the app background color on theme change
   useEffect(() => {
     setBackgroundColorAsync(theme.color.background);
   }, [theme.color.background]);
 
   return (
-    <AssetServiceProvider
-      initializeOnMount
-      onInitialized={() => setAssetServiceInitialized(true)}
-    >
+    <AssetServiceProvider initializeOnMount>
       <TranscriberServiceProvider>
         <ThemeProvider value={theme.navigation}>
           <QueryClientProvider client={queryClient}>

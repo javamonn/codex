@@ -113,11 +113,9 @@ function maybeHydrateServices<T extends keyof Services>(
 
 export const AssetServiceProvider = ({
   children,
-  onInitialized,
   initializeOnMount,
 }: {
   children: React.ReactNode;
-  onInitialized: () => void;
   initializeOnMount: boolean;
 }) => {
   const [audible, setAudible] = useState<InstanceType<
@@ -176,8 +174,7 @@ export const AssetServiceProvider = ({
     }
 
     setIsInitialized(true);
-    onInitialized();
-  }, [setAudible, onInitialized, isInitialized, setIsInitialized]);
+  }, [setAudible, isInitialized, setIsInitialized]);
 
   useEffect(() => {
     if (initializeOnMount) {
