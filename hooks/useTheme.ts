@@ -9,7 +9,11 @@ const darkTheme = {
   style: darkStyles,
   navigation: {
     ...DarkTheme,
-    background: colors.dark.background,
+    colors: {
+      ...DarkTheme.colors,
+      background: colors.dark.background,
+      text: colors.dark.textPrimary,
+    },
   },
 } as const;
 
@@ -18,12 +22,18 @@ const lightTheme = {
   style: lightStyles,
   navigation: {
     ...DefaultTheme,
-    background: colors.light.background,
+    colors: {
+      ...DefaultTheme.colors,
+      background: colors.light.background,
+      text: colors.light.textPrimary,
+    },
   },
 } as const;
 
 export function useTheme() {
   const colorScheme = useColorScheme();
 
-  return colorScheme ?? defaultColorScheme === "dark" ? darkTheme : lightTheme;
+  return (colorScheme ?? defaultColorScheme) === "dark"
+    ? darkTheme
+    : lightTheme;
 }

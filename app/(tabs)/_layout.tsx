@@ -1,9 +1,50 @@
 import { Tabs } from "expo-router";
-import React from "react";
+import React, { PropsWithChildren } from "react";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { StyleSheet } from "react-native";
+import { PressableProps, StyleSheet, Pressable } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 import { useTheme } from "@/hooks/useTheme";
+
+const IconScalePressable: React.FC<PropsWithChildren<PressableProps>> = ({
+  children,
+  ...pressableProps
+}) => {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.9, {
+      damping: 10,
+      stiffness: 400,
+    });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, {
+      damping: 10,
+      stiffness: 400,
+    });
+  };
+
+  return (
+    <Pressable
+      {...pressableProps}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      hitSlop={8}
+      android_ripple={null}
+    >
+      <Animated.View style={animatedStyle}>{children}</Animated.View>
+    </Pressable>
+  );
+};
 
 export default function TabLayout() {
   const theme = useTheme();
@@ -12,9 +53,11 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         sceneStyle: theme.style.background,
-        tabBarActiveTintColor: theme.color.tint,
+        tabBarActiveTintColor: theme.color.textPrimary,
+        tabBarInactiveTintColor: theme.color.textQuaternary,
         tabBarStyle: theme.style.tabBar,
         headerShown: false,
+        tabBarButton: IconScalePressable,
       }}
     >
       <Tabs.Screen
@@ -23,10 +66,10 @@ export default function TabLayout() {
           title: "Library",
           sceneStyle: theme.style.background,
           tabBarShowLabel: false,
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons
               name="playlist-play"
-              size={size}
+              size={28}
               color={color}
               style={styles.tabBarIcon}
             />
@@ -39,10 +82,10 @@ export default function TabLayout() {
           title: "Account",
           sceneStyle: theme.style.background,
           tabBarShowLabel: false,
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons
               name="account"
-              size={size}
+              size={28}
               color={color}
               style={styles.tabBarIcon}
             />

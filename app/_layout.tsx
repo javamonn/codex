@@ -1,10 +1,11 @@
+import "react-native-reanimated";
+import { Appearance } from "react-native";
 import { useEffect } from "react";
 import { ThemeProvider } from "@react-navigation/native";
 import { setBackgroundColorAsync } from "expo-system-ui";
 import { Stack } from "expo-router";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import "react-native-reanimated";
 
 import { AssetServiceProvider } from "@/components/contexts/AssetsServiceContext";
 import { TranscriberServiceProvider } from "@/components/contexts/TranscriberContext";
@@ -13,8 +14,11 @@ import { colors } from "@/constants/colors";
 import * as SplashScreen from "@/utils/splash-screen";
 
 SplashScreen.preventAutoHide();
-
-setBackgroundColorAsync(colors.dark.background);
+setBackgroundColorAsync(
+  Appearance.getColorScheme() === "dark"
+    ? colors.dark.background
+    : colors.light.background
+);
 
 const queryClient = new QueryClient();
 export default function RootLayout() {

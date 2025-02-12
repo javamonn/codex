@@ -10,8 +10,8 @@ export function Pressable(props: NativePressableProps) {
 
   return (
     <NativePressable
-      android_ripple={{ color: colors[colorScheme].ripple }}
       {...props}
+      android_ripple={{ color: colors[colorScheme].ripple }}
     />
   );
 }
