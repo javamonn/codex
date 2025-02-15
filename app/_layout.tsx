@@ -47,6 +47,13 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="asset/[id]"
+                options={{
+                  contentStyle: theme.style.background,
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
                 name="+not-found"
                 options={{
                   contentStyle: theme.style.background,

@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import {
+  InfiniteData,
+  QueryClient,
+  queryOptions,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   Services as AssetServices,
   useAssetServiceContext,
 } from "@/components/contexts/AssetsServiceContext";
+import { Asset } from "@/services/assets/types";
 import { log } from "@/services/logger";
 
 import { AudioSourceState } from "./types";
@@ -13,12 +20,15 @@ import { AudioPlayer } from "./audio-player";
 
 const LOGGER_SERVICE_NAME = "components/containers/Asset";
 
+// FIXME: likely don't need to refetch here if it exists
 const getQueryOptions = ({
   assetServices,
   assetId,
+  queryClient,
 }: {
   assetId: string;
   assetServices: AssetServices;
+  queryClient: QueryClient;
 }) =>
   queryOptions({
     queryKey: ["asset", assetId],
@@ -38,11 +48,38 @@ const getQueryOptions = ({
         throw err;
       }
     },
+    initialData: () => {
+      const assets = queryClient.getQueryData<InfiniteData<Asset[]>>([
+        "assets",
+      ]);
+
+      if (!assets) {
+        return undefined;
+      }
+
+      for (const page of assets.pages) {
+        for (const asset of page) {
+          if (asset.id === assetId) {
+            return asset;
+          }
+        }
+      }
+
+      return undefined;
+    },
+    initialDataUpdatedAt: () =>
+      queryClient.getQueryState(["assets"])?.dataUpdatedAt,
   });
 
-export const AssetAudioPlayer: React.FC<{ assetId: string }> = ({ assetId }) => {
+export const AssetAudioPlayer: React.FC<{ assetId: string }> = ({
+  assetId,
+}) => {
   const { services: assetServices } = useAssetServiceContext();
-  const { data: asset } = useQuery(getQueryOptions({ assetServices, assetId }));
+  const queryClient = useQueryClient();
+  console.log("queryClient", queryClient);
+  const { data: asset } = useQuery(
+    getQueryOptions({ assetServices, assetId, queryClient })
+  );
   const [audioSource, setAudioSource] = useState<AudioSourceState>({
     status: "initial",
   });

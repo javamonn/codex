@@ -8,16 +8,17 @@ import { Asset } from "../types";
 
 import {
   LibraryItem,
-  parseTitle,
-  parseImageUrl,
-  parseCreators,
-  parseIsSourceAvailable,
-  parseDownloadMetadata,
+  getTitle,
+  getImageUrl,
+  getCreators,
+  getIsSourceAvailable,
+  getDownloadMetadata,
   DownloadSourceMetadata,
-} from "./library";
+} from "./api/library-item";
 import { Downloader } from "./downloader";
 import { CONVERSION_TARGET_FORMAT, Converter } from "./converter";
-import { Client } from "./device-registration";
+
+import { Client } from "./api/client";
 
 const LOGGER_SERVICE_NAME = "audible-service/asset";
 
@@ -44,12 +45,12 @@ export class AudibleAsset extends Asset {
   constructor({ libraryItem, client }: InstanceParams) {
     super({
       id: `audible:${libraryItem.asin}`,
-      title: parseTitle(libraryItem.title),
-      imageUrl: parseImageUrl(libraryItem.product_images),
-      creators: parseCreators(libraryItem.authors),
+      title: getTitle(libraryItem),
+      imageUrl: getImageUrl(libraryItem),
+      creators: getCreators(libraryItem),
     });
-    this.isRemoteSourceAvailable = parseIsSourceAvailable(libraryItem);
-    this.downloadSourceMetadata = parseDownloadMetadata(libraryItem, "best");
+    this.isRemoteSourceAvailable = getIsSourceAvailable(libraryItem);
+    this.downloadSourceMetadata = getDownloadMetadata(libraryItem, "best");
     this.client = client;
     this.asin = libraryItem.asin;
   }

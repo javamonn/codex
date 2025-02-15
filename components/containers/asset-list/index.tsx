@@ -237,5 +237,5 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: PADDING_HORIZONTAL / 2,
-  }
+  },
 });

@@ -1,6 +1,29 @@
 import { assertResponseStatus } from "@/utils";
 
-import { Client } from "./device-registration";
+import { Client } from "./client";
+
+export async function getActivationBytes({
+  client,
+}: {
+  client: Client;
+}): Promise<string> {
+  const query = new URLSearchParams({
+    player_manuf: "Audible,iPhone",
+    action: "register",
+    player_model: "iPhone",
+  });
+  const res = await client.fetch(
+    new URL(`https://www.audible.com/license/token?${query}`),
+    { method: "GET" }
+  );
+
+  await assertResponseStatus(res);
+
+  const data = await res.arrayBuffer();
+  const blob = new Uint8Array(data);
+
+  return parseActivationBytes(blob);
+}
 
 function concatenateUint8Arrays(arrays: Uint8Array[]): Uint8Array {
   const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
@@ -74,27 +97,4 @@ function parseActivationBytes(data: Uint8Array): string {
   }
 
   return ab;
-}
-
-export async function getActivationBytes({
-  client,
-}: {
-  client: Client;
-}): Promise<string> {
-  const query = new URLSearchParams({
-    player_manuf: "Audible,iPhone",
-    action: "register",
-    player_model: "iPhone",
-  });
-  const res = await client.fetch(
-    new URL(`https://www.audible.com/license/token?${query}`),
-    { method: "GET" }
-  );
-
-  await assertResponseStatus(res);
-
-  const data = await res.arrayBuffer();
-  const blob = new Uint8Array(data);
-
-  return parseActivationBytes(blob);
 }

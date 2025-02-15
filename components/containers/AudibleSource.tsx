@@ -1,14 +1,11 @@
 import { StyleSheet, View } from "react-native";
+
 import { Text } from "@/components/primitives";
 
-import { useAssetServiceContext } from "@/components/contexts/AssetsServiceContext";
-
 export default function AudibleSource() {
-  // const { services } = useAssetServiceContext();
-
   return (
     <View style={styles.container}>
-      <Text color="primary" size="md">
+      <Text color="primary" size="regular" weight="normal">
         Registered Audible Source
       </Text>
     </View>

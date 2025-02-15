@@ -2,7 +2,7 @@ import { File } from "expo-file-system/next";
 
 import { log } from "@/services/logger";
 
-import { Client } from "./device-registration";
+import type { Client } from "./api/client";
 import { ProgressEvent } from "./progress-event";
 
 const LOG_SERVICE_NAME = "audible/downloader";

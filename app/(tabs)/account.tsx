@@ -23,7 +23,7 @@ function SourceItem({ name, source, href }: SourceItemProps) {
     <Link href={href} asChild push>
       <Pressable style={styles.sourceItemContainer}>
         <Image source={source} style={styles.sourceItemImage} />
-        <Text color="primary" size="md">
+        <Text color="primary" size="regular" weight="normal">
           {name}
         </Text>
       </Pressable>

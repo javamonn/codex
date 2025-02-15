@@ -2,16 +2,15 @@ import { EventEmitter } from "eventemitter3";
 
 import { AssetServiceInterface, Asset } from "../types";
 
-import {
-  DeviceRegistration,
-  DeviceRegistrationParams,
-} from "./device-registration";
-import { getLibraryPage } from "./library";
+import { DeviceRegistration } from "./api/device-registration";
+import { getLibraryPage } from "./api/library";
+import { Client } from "./api/client";
+
 import { AudibleAsset } from "./asset";
 
 // Params as serialized to JSON
 export type AudibleAssetsServiceSerializedParams = {
-  deviceRegistration: DeviceRegistrationParams;
+  deviceRegistration: DeviceRegistration;
 };
 
 // Params as passed to the constructor
@@ -25,9 +24,9 @@ export const AudibleAssetsService: AssetServiceInterface<
   AudibleAssetsServiceParams,
   EventTypes
 > = class {
+  private client: Client;
   private deviceRegistration: DeviceRegistration;
   private emitter: EventEmitter<EventTypes>;
-  private assetCache: Map<string, Asset> = new Map();
 
   constructor(params: AudibleAssetsServiceParams | string) {
     if (typeof params === "string") {
@@ -48,13 +47,16 @@ export const AudibleAssetsService: AssetServiceInterface<
         );
       }
 
-      this.deviceRegistration = new DeviceRegistration(
-        serializedParams.deviceRegistration
-      );
+      this.deviceRegistration = serializedParams.deviceRegistration;
     } else {
       this.deviceRegistration = params.deviceRegistration;
     }
 
+    this.client = new Client({
+      adpToken: this.deviceRegistration.adpToken,
+      devicePrivateKey: this.deviceRegistration.devicePrivateKey,
+      tld: this.deviceRegistration.tld,
+    });
     this.emitter = new EventEmitter();
   }
 
@@ -69,11 +71,6 @@ export const AudibleAssetsService: AssetServiceInterface<
   }
 
   public async getAsset({ id }: { id: string }): Promise<Asset | null> {
-    const asset = this.assetCache.get(id);
-    if (asset) {
-      return asset;
-    }
-
     // TODO: Implement fetching a single asset, assume cache hit for now
     throw new Error("unimplemented");
   }
@@ -85,9 +82,8 @@ export const AudibleAssetsService: AssetServiceInterface<
     page: number;
     limit: number;
   }): Promise<Asset[]> {
-    const client = this.deviceRegistration.getClient();
     const libraryItems = await getLibraryPage({
-      client,
+      client: this.client,
       responseGroups: [
         "media",
         "product_attrs",
@@ -103,17 +99,11 @@ export const AudibleAssetsService: AssetServiceInterface<
     return libraryItems.reduce<AudibleAsset[]>((acc, libraryItem) => {
       const asset = new AudibleAsset({
         libraryItem,
-        client,
+        client: this.client,
       });
-
-      this.assetCache.set(asset.id, asset);
 
       acc.push(asset);
       return acc;
     }, []);
   }
 };
-
-// reexports
-export { CountryCode } from "./constants";
-export { OAuthParams, DeviceRegistration } from "./device-registration";

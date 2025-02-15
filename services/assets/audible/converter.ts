@@ -8,7 +8,7 @@ import {
 
 import { log } from "@/services/logger";
 
-import { Client } from "./device-registration";
+import type { Client } from "./api/client";
 import { ProgressEvent } from "./progress-event";
 
 FFmpegKitConfig.setLogLevel(Level.AV_LOG_INFO);

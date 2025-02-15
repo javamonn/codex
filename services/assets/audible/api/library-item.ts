@@ -1,9 +1,4 @@
-import { assertResponseStatus } from "@/utils";
 import { log } from "@/services/logger";
-
-import { Client } from "./device-registration";
-
-const LOGGER_SERVICE_NAME = "audible-service/library";
 
 export type ContentDeliveryType = "SinglePartBook" | "MultiPartBook";
 export type Author = { asin: string; name: string };
@@ -38,62 +33,20 @@ export type LibraryItem = {
   }[];
 };
 
-export async function getLibraryPage({
-  client,
-  responseGroups,
-  page,
-  limit,
-}: {
-  client: Client;
-  page: number;
-  limit: number;
-  responseGroups: (
-    | "media"
-    | "product_attrs"
-    | "product_desc"
-    | "relationships"
-    | "series"
-    | "customer_rights"
-  )[];
-}) {
-  const query = new URLSearchParams({
-    response_groups: responseGroups.join(","),
-    page: String(page),
-    num_results: String(limit),
-  });
-  const res = await client.fetch(
-    new URL(`https://api.audible.${client.getTLD()}/1.0/library?${query}`),
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "Accept-Charset": "utf-8",
-        "Content-Type": "application/json",
-      },
-    }
-  );
+const LOGGER_SERVICE_NAME = "audible/api/library-item"
 
-
-  await assertResponseStatus(res);
-
-  const data: { items: LibraryItem[] } = await res.json();
-
-  console.log("item", JSON.stringify(data.items[0], null, 2));
-
-  return data.items;
-}
-
-export function parseTitle(title: string | null): string {
-  if (title === null) {
+// Get the title
+export function getTitle(i: LibraryItem): string {
+  if (i.title === null) {
     throw new Error("No title found");
   }
 
-  return title;
+  return i.title;
 }
 
 // Get the highest resolution image URL from the product images
-export function parseImageUrl(productImages: Record<string, string>): string {
-  const urls = Object.entries(productImages)
+export function getImageUrl(i: LibraryItem): string {
+  const urls = Object.entries(i.product_images)
     .map(([resolution, url]) => {
       let parsedResolution = 0;
       try {
@@ -113,15 +66,15 @@ export function parseImageUrl(productImages: Record<string, string>): string {
   return urls[0].url;
 }
 
-export function parseCreators(authors: Author[]): string[] {
-  if (authors.length === 0) {
+export function getCreators(i: LibraryItem): string[] {
+  if (i.authors.length === 0) {
     throw new Error("No authors found");
   }
 
-  return authors.map((author) => author.name);
+  return i.authors.map((author) => author.name);
 }
 
-export function parseIsSourceAvailable({
+export function getIsSourceAvailable({
   publication_datetime: publicationDatetime,
   customer_rights: customerRights,
 }: Pick<LibraryItem, "publication_datetime" | "customer_rights">): boolean {
@@ -152,7 +105,7 @@ enum Codec {
   NORMAL = "AAX_44_64",
 }
 
-export function parseDownloadMetadata(
+export function getDownloadMetadata(
   {
     is_ayce: isAyce,
     available_codecs: availableCodecs,

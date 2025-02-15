@@ -1,5 +1,6 @@
+import { useCallback } from "react";
 import { StyleSheet, View } from "react-native";
-import { Link } from "expo-router";
+import { router } from "expo-router";
 import { Image } from "expo-image";
 
 import { Text } from "@/components/primitives/Text";
@@ -20,27 +21,29 @@ export const ListItem: React.FC<{
   id: string;
   onImageDisplay?: (id: string) => void;
 }> = ({ title, image, id, onImageDisplay, authors }) => {
+  const handlePress = useCallback(() => {
+    router.push(`/asset/${id}`);
+  }, [router.push]);
+
   return (
-    <Link href={`/asset/${id}`} asChild push>
-      <View style={styles.root}>
-        <Pressable style={styles.pressable}>
-          <Image
-            source={{ uri: image }}
-            style={styles.image}
-            recyclingKey={id}
-            onDisplay={onImageDisplay ? () => onImageDisplay(id) : undefined}
-          />
-          <View style={styles.textContainer}>
-            <Text color="primary" size="regular" weight="medium">
-              {title}
-            </Text>
-            <Text color="secondary" size="small" weight="normal">
-              {authors.join(", ")}
-            </Text>
-          </View>
-        </Pressable>
-      </View>
-    </Link>
+    <View style={styles.root}>
+      <Pressable style={styles.pressable} onPress={handlePress} unstable_pressDelay={50}>
+        <Image
+          source={{ uri: image }}
+          style={styles.image}
+          recyclingKey={id}
+          onDisplay={onImageDisplay ? () => onImageDisplay(id) : undefined}
+        />
+        <View style={styles.textContainer}>
+          <Text color="primary" size="regular" weight="medium">
+            {title}
+          </Text>
+          <Text color="secondary" size="small" weight="normal">
+            {authors.join(", ")}
+          </Text>
+        </View>
+      </Pressable>
+    </View>
   );
 };
 
@@ -48,7 +51,7 @@ const styles = StyleSheet.create({
   root: {
     borderRadius: 4,
     overflow: "hidden",
-    paddingHorizontal: PADDING_HORIZONTAL / 2,
+    marginHorizontal: PADDING_HORIZONTAL / 2,
   },
   pressable: {
     flex: 1,

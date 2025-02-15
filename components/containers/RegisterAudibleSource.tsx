@@ -6,10 +6,12 @@ import { useRegisterService } from "@/components/contexts/AssetsServiceContext";
 import { log } from "@/services/logger";
 import { AudibleAssetsService } from "@/services/assets/audible";
 import {
-  CountryCode,
-  OAuthParams,
-  DeviceRegistration,
-} from "@/services/assets/audible";
+  InitialOAuthParams,
+  CompletedOAuthParams,
+  getInitialOAuthParams,
+} from "@/services/assets/audible/api/oauth";
+import { register } from "@/services/assets/audible/api/device-registration";
+import { CountryCode } from "@/services/assets/audible/api/constants";
 
 type FlowState =
   | {
@@ -20,12 +22,12 @@ type FlowState =
       // waiting for user to complete oauth via webview
       state: "oauth_pending";
       source: { uri: string; headers: Record<string, string> };
-      oauthParams: Omit<OAuthParams, "authorizationCode">;
+      oauthParams: InitialOAuthParams;
     }
   | {
       // user oauth complete, token available
       state: "oauth_complete";
-      oauthParams: OAuthParams;
+      oauthParams: CompletedOAuthParams;
       oauthHeaders: Record<string, string>;
     }
   | {
@@ -58,7 +60,7 @@ export default function RegisterAudibleSource() {
 
   // flowState oauth_init -> oauth_pending
   const handleOAuthInit = useCallback(async () => {
-    const { source, oauthParams } = await DeviceRegistration.startOAuth({
+    const { source, oauthParams } = await getInitialOAuthParams({
       countryCode: CountryCode.US,
     });
 
@@ -76,7 +78,7 @@ export default function RegisterAudibleSource() {
 
   // flowState oauth_complete -> device_registration_pending
   const handleOAuthComplete = useCallback(
-    async (oauthParams: OAuthParams, headers: Record<string, string>) => {
+    async (oauthParams: CompletedOAuthParams, headers: Record<string, string>) => {
       log({
         level: "info",
         message: "oauth complete",
@@ -84,7 +86,7 @@ export default function RegisterAudibleSource() {
       });
 
       try {
-        const deviceRegistration = await DeviceRegistration.fromCompletedOAuth({
+        const deviceRegistration = await register({
           oauthParams,
           headers,
         });
@@ -114,12 +116,6 @@ export default function RegisterAudibleSource() {
     (event) => {
       try {
         const url = new URL(event.url);
-
-        console.log(
-          "handleWebviewNavigationStateChange",
-          url.pathname,
-          url.search
-        );
 
         if (url.pathname === "/ap/maplanding") {
           if (!url.searchParams.has("openid.oa2.authorization_code")) {
