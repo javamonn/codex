@@ -1,25 +1,44 @@
 import {
   TextProps as NativeTextProps,
   Text as NativeText,
-  useColorScheme,
-  StyleSheet,
+  TextStyle,
 } from "react-native";
 
-import { colors, defaultColorScheme } from "@/constants/colors";
+import { textSizeStyles, textWeightStyles } from "@/constants/styles";
+import { useTheme } from "@/hooks/useTheme";
 
 type TextProps = NativeTextProps & {
-  color: "primary";
-  size: "md";
+  color: "primary" | "secondary" | "tertiary" | "quaternary";
+  size: keyof typeof textSizeStyles;
+  weight: keyof typeof textWeightStyles;
 };
 
-export function Text({ color, size, ...nativeTextProps }: TextProps) {
-  const colorScheme = useColorScheme() ?? defaultColorScheme;
+const getColorStyle = (
+  color: TextProps["color"],
+  theme: ReturnType<typeof useTheme>
+): TextStyle => {
+  switch (color) {
+    case "primary":
+      return theme.style.textPrimary;
+    case "secondary":
+      return theme.style.textSecondary;
+    case "tertiary":
+      return theme.style.textTertiary;
+    case "quaternary":
+      return theme.style.textQuaternary;
+  }
+};
+
+export function Text({ color, size, weight, ...nativeTextProps }: TextProps) {
+  const theme = useTheme();
+
   return (
     <NativeText
       {...nativeTextProps}
       style={[
-        colorStyles[`${colorScheme}.${color}`],
-        sizeStyles[size],
+        getColorStyle(color, theme),
+        textSizeStyles[size],
+        textWeightStyles[weight],
         nativeTextProps.style,
       ]}
     >
@@ -27,24 +46,3 @@ export function Text({ color, size, ...nativeTextProps }: TextProps) {
     </NativeText>
   );
 }
-
-type ColorStyle = Record<
-  `${keyof typeof colors}.${TextProps["color"]}`,
-  { color: string }
->;
-
-const colorStyles = StyleSheet.create<ColorStyle>(
-  Object.entries(colors).reduce(
-    (agg, [theme, themeColors]) => ({
-      ...agg,
-      [`${theme}.primary`]: {
-        color: themeColors.textPrimary,
-      },
-    }),
-    {} as ColorStyle
-  )
-);
-
-const sizeStyles = StyleSheet.create({
-  md: { fontSize: 16 },
-});

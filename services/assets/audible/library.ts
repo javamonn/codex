@@ -73,13 +73,12 @@ export async function getLibraryPage({
     }
   );
 
-  // console.log("res", res);
 
   await assertResponseStatus(res);
 
   const data: { items: LibraryItem[] } = await res.json();
 
-  // console.log ("res data", data);
+  console.log("item", JSON.stringify(data.items[0], null, 2));
 
   return data.items;
 }

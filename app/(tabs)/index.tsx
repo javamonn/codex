@@ -8,7 +8,7 @@ import {
   useAssetServiceContext,
   Services as AssetServices,
 } from "@/components/contexts/AssetsServiceContext";
-import { AssetList } from "@/components/containers/AssetList";
+import { AssetList } from "@/components/containers/asset-list";
 import { LoadingIndicator } from "@/components/primitives/LoadingIndicator";
 import * as SplashScreen from "@/utils/splash-screen";
 

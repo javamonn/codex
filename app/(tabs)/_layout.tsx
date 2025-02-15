@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import React, { PropsWithChildren } from "react";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import FeatherIcons from "@expo/vector-icons/Feather";
 import { PressableProps, StyleSheet, Pressable } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -22,7 +22,7 @@ const IconScalePressable: React.FC<PropsWithChildren<PressableProps>> = ({
   const handlePressIn = () => {
     scale.value = withSpring(0.9, {
       damping: 10,
-      stiffness: 400,
+      stiffness: 200,
     });
   };
 
@@ -66,10 +66,10 @@ export default function TabLayout() {
           title: "Library",
           sceneStyle: theme.style.background,
           tabBarShowLabel: false,
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons
-              name="playlist-play"
-              size={28}
+          tabBarIcon: ({ color, size }) => (
+            <FeatherIcons
+              name="database"
+              size={size}
               color={color}
               style={styles.tabBarIcon}
             />
@@ -82,10 +82,10 @@ export default function TabLayout() {
           title: "Account",
           sceneStyle: theme.style.background,
           tabBarShowLabel: false,
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons
-              name="account"
-              size={28}
+          tabBarIcon: ({ color, size }) => (
+            <FeatherIcons
+              name="user"
+              size={size}
               color={color}
               style={styles.tabBarIcon}
             />
