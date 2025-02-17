@@ -1,6 +1,6 @@
 import { View, StyleSheet } from "react-native";
 
-import { Text } from "@/components/primitives/Text";
+import { Text } from "@/components/primitives/text";
 import { en } from "@/constants/strings";
 
 import { PADDING_HORIZONTAL } from "./common";

@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 
-import { Text } from "@/components/primitives";
+import { Text } from "@/components/primitives/text";
 
 export default function AudibleSource() {
   return (

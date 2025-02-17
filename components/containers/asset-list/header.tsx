@@ -7,9 +7,10 @@ import {
   withSpring,
 } from "react-native-reanimated";
 
-import { Text } from "@/components/primitives/Text";
-import { useTheme } from "@/hooks/useTheme";
+import { Text } from "@/components/primitives/text";
+import { useTheme } from "@/hooks/use-theme";
 import { en } from "@/constants/strings";
+
 import { PADDING_HORIZONTAL } from "./common";
 
 const SPRING_CONFIG = {

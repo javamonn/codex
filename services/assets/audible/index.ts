@@ -1,9 +1,9 @@
 import { EventEmitter } from "eventemitter3";
 
-import { AssetServiceInterface, Asset } from "../types";
+import { AssetServiceInterface, Asset, AssetId } from "../types";
 
 import { DeviceRegistration } from "./api/device-registration";
-import { getLibraryPage } from "./api/library";
+import { getLibraryPage, getLibraryItem, ResponseGroup } from "./api/library";
 import { Client } from "./api/client";
 
 import { AudibleAsset } from "./asset";
@@ -19,6 +19,15 @@ export type AudibleAssetsServiceParams = {
 };
 
 type EventTypes = any;
+
+const LIBRARY_ITEM_RESPONSE_GROUPS: ResponseGroup[] = [
+  "media",
+  "product_attrs",
+  "product_desc",
+  "relationships",
+  "series",
+  "customer_rights",
+];
 
 export const AudibleAssetsService: AssetServiceInterface<
   AudibleAssetsServiceParams,
@@ -70,9 +79,14 @@ export const AudibleAssetsService: AssetServiceInterface<
     return this.emitter;
   }
 
-  public async getAsset({ id }: { id: string }): Promise<Asset | null> {
-    // TODO: Implement fetching a single asset, assume cache hit for now
-    throw new Error("unimplemented");
+  public async getAsset({ id }: { id: AssetId }): Promise<Asset | null> {
+    const libraryItem = await getLibraryItem({
+      client: this.client,
+      responseGroups: LIBRARY_ITEM_RESPONSE_GROUPS,
+      asin: AudibleAsset.parseAsin(id),
+    });
+
+    return new AudibleAsset({ libraryItem, client: this.client });
   }
 
   public async getAssets({
@@ -84,14 +98,7 @@ export const AudibleAssetsService: AssetServiceInterface<
   }): Promise<Asset[]> {
     const libraryItems = await getLibraryPage({
       client: this.client,
-      responseGroups: [
-        "media",
-        "product_attrs",
-        "product_desc",
-        "relationships",
-        "series",
-        "customer_rights",
-      ],
+      responseGroups: LIBRARY_ITEM_RESPONSE_GROUPS,
       page,
       limit,
     });

@@ -1,9 +1,13 @@
 import type { EventEmitter } from "eventemitter3";
 import type { AudioSource } from "expo-audio";
 
+type AudibleAssetId = `audible:${string}`;
+
+export type AssetId = AudibleAssetId;
+
 // Base asset class. Playback source resolution will be service-specific.
 export abstract class Asset {
-  readonly id: string;
+  readonly id: AssetId;
   readonly imageUrl: string;
   readonly title: string;
   readonly creators: string[];
@@ -17,7 +21,7 @@ export abstract class Asset {
     imageUrl: string;
     title: string;
     creators: string[];
-    id: string;
+    id: AssetId;
   }) {
     this.imageUrl = imageUrl;
     this.title = title;
@@ -46,7 +50,7 @@ declare class AssetService<
   getAssets(params: { page: number; limit: number }): Promise<Asset[]>;
 
   // Get a single asset from the service.
-  getAsset(params: { id: string }): Promise<Asset | null>;
+  getAsset(params: { id: AssetId }): Promise<Asset | null>;
 }
 
 export type AssetServiceInterface<

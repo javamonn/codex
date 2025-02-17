@@ -3,7 +3,7 @@ import { assertResponseStatus } from "@/utils";
 import type { LibraryItem } from "./library-item";
 import type { Client } from "./client";
 
-type ResponseGroup =
+export type ResponseGroup =
   | "contributors"
   | "media"
   | "price"
@@ -36,7 +36,7 @@ type ResponseGroup =
   | "provided_review"
   | "customer_rights";
 
-export async function getLibaryItem({
+export async function getLibraryItem({
   client,
   responseGroups,
   asin,
@@ -45,7 +45,29 @@ export async function getLibaryItem({
   responseGroups: ResponseGroup[];
   asin: string;
 }) {
-  throw new Error("Not implemented");
+  const query = new URLSearchParams({
+    response_groups: responseGroups.join(","),
+  });
+
+  const res = await client.fetch(
+    new URL(
+      `https://api.audible.${client.getTLD()}/1.0/library/${asin}?${query}`
+    ),
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "Accept-Charset": "utf-8",
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  const data: { item: LibraryItem } = await res.json();
+
+  console.log("data", data);
+
+  return data.item;
 }
 
 export async function getLibraryPage({
@@ -82,4 +104,3 @@ export async function getLibraryPage({
 
   return data.items;
 }
-

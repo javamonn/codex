@@ -1,20 +1,10 @@
-import { useEffect } from "react";
 import { useLocalSearchParams } from "expo-router";
 
-import { AssetAudioPlayer } from "@/components/containers/asset-audio-player";
-import { useTranscriberServiceContext } from "@/components/contexts/TranscriberContext";
+import { AssetId } from "@/services/assets/types";
+import { AssetLayout } from "@/components/layouts/asset/asset-layout";
 
 export default function AssetScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { transcriber } = useTranscriberServiceContext();
+  const { id } = useLocalSearchParams<{ id: AssetId }>();
 
-  useEffect(() => {
-    transcriber.initialize();
-
-    return () => {
-      transcriber.release();
-    };
-  }, []);
-
-  return <AssetAudioPlayer assetId={id} />;
+  return <AssetLayout id={id} />;
 }

@@ -1,8 +1,10 @@
 import { StyleSheet, ScrollView } from "react-native";
 import { Image, ImageSource } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Text, Pressable } from "@/components/primitives";
 import { Href, Link } from "expo-router";
+
+import { Text } from "@/components/primitives/text";
+import { Pressable } from "@/components/primitives/pressable";
 
 type SourceItemProps = {
   source: ImageSource;

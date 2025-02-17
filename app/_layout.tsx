@@ -9,7 +9,7 @@ import { StatusBar } from "expo-status-bar";
 
 import { AssetServiceProvider } from "@/components/contexts/AssetsServiceContext";
 import { TranscriberServiceProvider } from "@/components/contexts/TranscriberContext";
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/hooks/use-theme";
 import { colors } from "@/constants/colors";
 import * as SplashScreen from "@/utils/splash-screen";
 

@@ -1,4 +1,4 @@
-import { Text } from "@/components/primitives";
+import { Text } from "@/components/primitives/text";
 
 // TODO: replace with flashing cursor
 export const LoadingIndicator = () => {

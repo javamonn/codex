@@ -4,7 +4,7 @@ import { File, Paths, Directory } from "expo-file-system/next";
 import { log } from "@/services/logger";
 
 import { ProgressEvent } from "./progress-event";
-import { Asset } from "../types";
+import { Asset, AssetId } from "../types";
 
 import {
   LibraryItem,
@@ -155,5 +155,13 @@ export class AudibleAsset extends Asset {
 
   private async getAAXCUrl(): Promise<URL> {
     throw new Error("Not implemented");
+  }
+
+  public static parseAsin(id: AssetId): string {
+    if (!id.startsWith("audible:")) {
+      throw new Error(`Invalid audible asset id: ${id}`);
+    }
+
+    return id.slice("audible:".length);
   }
 }

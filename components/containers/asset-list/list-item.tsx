@@ -3,8 +3,8 @@ import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { Image } from "expo-image";
 
-import { Text } from "@/components/primitives/Text";
-import { Pressable } from "@/components/primitives";
+import { Text } from "@/components/primitives/text";
+import { Pressable } from "@/components/primitives/pressable";
 
 import { PADDING_HORIZONTAL } from "./common";
 

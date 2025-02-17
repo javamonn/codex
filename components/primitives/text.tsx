@@ -5,18 +5,18 @@ import {
 } from "react-native";
 
 import { textSizeStyles, textWeightStyles } from "@/constants/styles";
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/hooks/use-theme";
 
 type TextProps = NativeTextProps & {
-  color: "primary" | "secondary" | "tertiary" | "quaternary";
-  size: keyof typeof textSizeStyles;
-  weight: keyof typeof textWeightStyles;
+  color?: "primary" | "secondary" | "tertiary" | "quaternary";
+  size?: keyof typeof textSizeStyles;
+  weight?: keyof typeof textWeightStyles;
 };
 
 const getColorStyle = (
-  color: TextProps["color"],
+  color: NonNullable<TextProps["color"]>,
   theme: ReturnType<typeof useTheme>
-): TextStyle => {
+): TextStyle | null => {
   switch (color) {
     case "primary":
       return theme.style.textPrimary;
@@ -29,7 +29,12 @@ const getColorStyle = (
   }
 };
 
-export function Text({ color, size, weight, ...nativeTextProps }: TextProps) {
+export const Text: React.FC<TextProps> = ({
+  color = "primary",
+  size = "regular",
+  weight = "normal",
+  ...nativeTextProps
+}) => {
   const theme = useTheme();
 
   return (
@@ -45,4 +50,4 @@ export function Text({ color, size, weight, ...nativeTextProps }: TextProps) {
       {nativeTextProps.children}
     </NativeText>
   );
-}
+};
