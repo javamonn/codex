@@ -9,21 +9,19 @@ import {
 } from "@tanstack/react-query";
 
 import { AssetId, Asset } from "@/services/assets/types";
-import {
-  Services as AssetServices,
-  useAssetServiceContext,
-} from "@/components/contexts/AssetsServiceContext";
 import { log } from "@/services/logger";
+import { AudibleAssetsService } from "@/services/assets/audible";
+import { useAssetService } from "@/hooks/use-asset-service";
 
 const LOGGER_SERVICE_NAME = "components/layouts/asset/query";
 
 const getQueryOptions = ({
-  assetServices,
+  audible,
   assetId,
   queryClient,
 }: {
   assetId: AssetId;
-  assetServices: AssetServices;
+  audible: InstanceType<typeof AudibleAssetsService> | null;
   queryClient: QueryClient;
 }) =>
   queryOptions({
@@ -32,7 +30,7 @@ const getQueryOptions = ({
     queryFn: async (ctx) => {
       const [_, assetId] = ctx.queryKey;
       try {
-        const data = await assetServices.audible?.getAsset({
+        const data = await audible!.getAsset({
           id: assetId as AssetId,
         });
 
@@ -70,15 +68,17 @@ const getQueryOptions = ({
     staleTime: Infinity,
     initialDataUpdatedAt: () =>
       queryClient.getQueryState(["assets"])?.dataUpdatedAt,
+    enabled: Boolean(audible),
   });
 
 export const useQuery = (id: AssetId): UseQueryResult<Asset | null, Error> => {
-  const { services: assetServices } = useAssetServiceContext();
+  const { data: audible } = useAssetService("audible");
   const queryClient = useQueryClient();
 
   const queryOptions = useMemo(
-    () => getQueryOptions({ assetServices, assetId: id, queryClient }),
-    [assetServices, id, queryClient]
+    () =>
+      getQueryOptions({ audible: audible ?? null, assetId: id, queryClient }),
+    [audible ?? null, id, queryClient]
   );
 
   return nativeUseQuery(queryOptions);

@@ -2,28 +2,24 @@ import { useMemo } from "react";
 
 import { useInfiniteQuery, infiniteQueryOptions } from "@tanstack/react-query";
 
-import {
-  useAssetServiceContext,
-  Services as AssetServices,
-} from "@/components/contexts/AssetsServiceContext";
+import { AudibleAssetsService } from "@/services/assets/audible";
 import { log } from "@/services/logger";
+import { useAssetService } from "@/hooks/use-asset-service";
 
-const LOGGER_SERVICE_NAME = "components/layouts/asset-list/query"
+const LOGGER_SERVICE_NAME = "components/layouts/asset-list/query";
 export const PAGE_LIMIT = 40;
 
 export const getQueryOptions = ({
-  assetServices,
-  isInitialized,
+  audible,
 }: {
-  assetServices: AssetServices;
-  isInitialized: boolean;
+  audible: InstanceType<typeof AudibleAssetsService> | null;
 }) =>
   infiniteQueryOptions({
     queryKey: ["assets"],
     retry: false,
     queryFn: async (ctx) => {
       try {
-        const data = await assetServices.audible?.getAssets({
+        const data = await audible!.getAssets({
           page: ctx.pageParam,
           limit: PAGE_LIMIT,
         });
@@ -43,15 +39,15 @@ export const getQueryOptions = ({
     getNextPageParam: (lastPage, pages) =>
       lastPage?.length === PAGE_LIMIT ? pages.length : undefined,
     select: (data) => data.pages.flatMap((page) => page),
-    enabled: isInitialized && Boolean(assetServices.audible),
+    enabled: Boolean(audible),
   });
 
 export const useQuery = () => {
-  const { services: assetServices, isInitialized } = useAssetServiceContext();
+  const { data: audible } = useAssetService("audible");
 
   const queryOptions = useMemo(
-    () => getQueryOptions({ assetServices, isInitialized }),
-    [assetServices]
+    () => getQueryOptions({ audible: audible ?? null }),
+    [audible ?? null]
   );
 
   return useInfiniteQuery(queryOptions);

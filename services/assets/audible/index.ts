@@ -1,12 +1,12 @@
 import { EventEmitter } from "eventemitter3";
+import type { AudioSource } from "expo-audio";
 
-import { AssetServiceInterface, Asset, AssetId } from "../types";
+import { AssetServiceInterface } from "../types";
 
 import { DeviceRegistration } from "./api/device-registration";
 import { getLibraryPage, getLibraryItem, ResponseGroup } from "./api/library";
 import { Client } from "./api/client";
-
-import { AudibleAsset } from "./asset";
+import { AudibleAsset, parseLibraryItem } from "./asset";
 
 // Params as serialized to JSON
 export type AudibleAssetsServiceSerializedParams = {
@@ -30,6 +30,7 @@ const LIBRARY_ITEM_RESPONSE_GROUPS: ResponseGroup[] = [
 ];
 
 export const AudibleAssetsService: AssetServiceInterface<
+  AudibleAsset,
   AudibleAssetsServiceParams,
   EventTypes
 > = class {
@@ -79,14 +80,26 @@ export const AudibleAssetsService: AssetServiceInterface<
     return this.emitter;
   }
 
-  public async getAsset({ id }: { id: AssetId }): Promise<Asset | null> {
+  public async getAsset({ id }: { id: string }): Promise<AudibleAsset | null> {
     const libraryItem = await getLibraryItem({
       client: this.client,
       responseGroups: LIBRARY_ITEM_RESPONSE_GROUPS,
-      asin: AudibleAsset.parseAsin(id),
+      asin: id,
     });
 
-    return new AudibleAsset({ libraryItem, client: this.client });
+    return parseLibraryItem(libraryItem);
+  }
+
+  public async getAssetPlaybackSource({
+    asset,
+  }: {
+    asset: AudibleAsset;
+  }): Promise<AudioSource> {
+    // download if required
+    // convert if required
+    // return converted uri
+
+    throw new Error("Not implemented");
   }
 
   public async getAssets({
@@ -95,7 +108,7 @@ export const AudibleAssetsService: AssetServiceInterface<
   }: {
     page: number;
     limit: number;
-  }): Promise<Asset[]> {
+  }): Promise<AudibleAsset[]> {
     const libraryItems = await getLibraryPage({
       client: this.client,
       responseGroups: LIBRARY_ITEM_RESPONSE_GROUPS,
@@ -103,14 +116,6 @@ export const AudibleAssetsService: AssetServiceInterface<
       limit,
     });
 
-    return libraryItems.reduce<AudibleAsset[]>((acc, libraryItem) => {
-      const asset = new AudibleAsset({
-        libraryItem,
-        client: this.client,
-      });
-
-      acc.push(asset);
-      return acc;
-    }, []);
+    return libraryItems.map((libraryItem) => parseLibraryItem(libraryItem));
   }
 };

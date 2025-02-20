@@ -3,7 +3,7 @@ import sha256 from "crypto-js/sha256";
 import { FetchRequestInit } from "expo/fetch";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { audibleActivationBytesKey } from "@/utils/cache-key";
+import { audibleActivationBytesKey } from "@/utils/async-storage-key";
 
 import { getActivationBytes } from "./activation-bytes";
 import { TLD } from "./constants"
@@ -63,6 +63,9 @@ export class Client {
     return this.tld;
   }
 
+  // Activation bytes are required for AAX to M4B conversion and are static per
+  // device. We cache the value in memory + AsyncStorage to avoid unnecessary
+  // requests.
   public async getActivationBytes(): Promise<string> {
     // attempt fetch from cache
     if (!this.activationBytes) {

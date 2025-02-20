@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { WebView, WebViewProps } from "react-native-webview";
 import { useState, useEffect, useCallback } from "react";
 
-import { useRegisterService } from "@/components/contexts/AssetsServiceContext";
+import { useMutateAssetService } from "@/hooks/use-asset-service";
 import { log } from "@/services/logger";
 import { AudibleAssetsService } from "@/services/assets/audible";
 import {
@@ -56,7 +56,8 @@ export default function RegisterAudibleSource() {
   const [flowState, setFlowState] = useState<FlowState>({
     state: "oauth_init",
   });
-  const registerService = useRegisterService();
+
+  const { mutate: onMutateAudibleService } = useMutateAssetService("audible");
 
   // flowState oauth_init -> oauth_pending
   const handleOAuthInit = useCallback(async () => {
@@ -78,7 +79,10 @@ export default function RegisterAudibleSource() {
 
   // flowState oauth_complete -> device_registration_pending
   const handleOAuthComplete = useCallback(
-    async (oauthParams: CompletedOAuthParams, headers: Record<string, string>) => {
+    async (
+      oauthParams: CompletedOAuthParams,
+      headers: Record<string, string>
+    ) => {
       log({
         level: "info",
         message: "oauth complete",
@@ -93,7 +97,16 @@ export default function RegisterAudibleSource() {
 
         const audibleService = new AudibleAssetsService({ deviceRegistration });
 
-        await registerService("audible", audibleService);
+        return new Promise((resolve, reject) => {
+          onMutateAudibleService(audibleService, {
+            onError: (err) => {
+              reject(err);
+            },
+            onSuccess: () => {
+              resolve(void 0);
+            },
+          });
+        });
       } catch (e) {
         log({
           level: "error",

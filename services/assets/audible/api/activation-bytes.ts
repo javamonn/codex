@@ -1,4 +1,4 @@
-import { assertResponseStatus } from "@/utils";
+import { assertResponseStatus } from "@/utils/assert-response-status";
 
 import { Client } from "./client";
 

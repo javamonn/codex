@@ -1,4 +1,4 @@
-import { assertResponseStatus } from "@/utils";
+import { assertResponseStatus } from "@/utils/assert-response-status";
 
 import type { LibraryItem } from "./library-item";
 import type { Client } from "./client";
@@ -64,8 +64,6 @@ export async function getLibraryItem({
   );
 
   const data: { item: LibraryItem } = await res.json();
-
-  console.log("data", data);
 
   return data.item;
 }

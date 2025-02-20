@@ -1,167 +1,174 @@
-import type { AudioSource } from "expo-audio";
-import { File, Paths, Directory } from "expo-file-system/next";
-
 import { log } from "@/services/logger";
 
-import { ProgressEvent } from "./progress-event";
-import { Asset, AssetId } from "../types";
-
-import {
-  LibraryItem,
-  getTitle,
-  getImageUrl,
-  getCreators,
-  getIsSourceAvailable,
-  getDownloadMetadata,
-  DownloadSourceMetadata,
-} from "./api/library-item";
-import { Downloader } from "./downloader";
-import { CONVERSION_TARGET_FORMAT, Converter } from "./converter";
-
-import { Client } from "./api/client";
+import { LibraryItem } from "./api/library-item";
 
 const LOGGER_SERVICE_NAME = "audible-service/asset";
 
-type InstanceParams = {
-  // audible library api data
-  libraryItem: LibraryItem;
+type SourceCodecMetadata =
+  | { fileType: "aaxc" }
+  | { fileType: "aax"; codec: string; codecName: string };
 
-  client: Client;
+export type AudibleAsset = {
+  type: "audible";
+  id: LibraryItem["asin"];
+  imageUrl: string;
+  title: string;
+  authors: string[];
+  isDownloadable: boolean;
+  sourceCodecMetadata: SourceCodecMetadata;
 };
 
-export class AudibleAsset extends Asset {
-  // Asset ID in audible api
-  asin: LibraryItem["asin"];
+export const parseLibraryItem = (libraryItem: LibraryItem): AudibleAsset => ({
+  type: "audible",
+  id: `audible:${libraryItem.asin}`,
+  title: parseTitle(libraryItem),
+  imageUrl: parseImageUrl(libraryItem),
+  authors: parseAuthors(libraryItem),
+  isDownloadable: parseIsDownloadable(libraryItem),
+  sourceCodecMetadata: parseSourceCodecMetadata(libraryItem, "best"),
+});
 
-  // remote source is available if published and consumable offline rights exist
-  isRemoteSourceAvailable: boolean;
-
-  // metadata for downloading the asset from source
-  downloadSourceMetadata: DownloadSourceMetadata;
-
-  // used for authenticating requests to download remote assets
-  client: Client;
-
-  constructor({ libraryItem, client }: InstanceParams) {
-    super({
-      id: `audible:${libraryItem.asin}`,
-      title: getTitle(libraryItem),
-      imageUrl: getImageUrl(libraryItem),
-      creators: getCreators(libraryItem),
-    });
-    this.isRemoteSourceAvailable = getIsSourceAvailable(libraryItem);
-    this.downloadSourceMetadata = getDownloadMetadata(libraryItem, "best");
-    this.client = client;
-    this.asin = libraryItem.asin;
+// Parse the asset title from the library item
+const parseTitle = (i: Pick<LibraryItem, "title">): string => {
+  if (i.title === null) {
+    throw new Error("No title found");
   }
 
-  // Audible files must be download as aax and converted to mp3 before playback
-  public async getPlaybackSource({
-    onProgress,
-  }: {
-    onProgress: (ev: ProgressEvent) => void;
-  }): Promise<AudioSource> {
-    const sourceUrl = await (this.downloadSourceMetadata.fileType === "aax"
-      ? this.getAAXUrl()
-      : this.getAAXCUrl());
+  return i.title;
+};
 
-    const assetsDir = new Directory(Paths.document, "audible-assets");
-    if (!assetsDir.exists) {
-      assetsDir.create();
-    }
-    const rawFile = new File(
-      assetsDir,
-      `${this.asin}.${this.downloadSourceMetadata.fileType}`
-    );
-    const downloader = new Downloader({
-      client: this.client,
-      source: sourceUrl,
-      destination: rawFile,
-    });
-    await downloader.execute(onProgress);
-    log({
-      service: LOGGER_SERVICE_NAME,
-      level: "info",
-      message: "getPlaybackSource: downloaded",
-      data: { asin: this.asin },
-    });
-
-    const convertedFile = new File(
-      assetsDir,
-      `${this.asin}.${CONVERSION_TARGET_FORMAT}`
-    );
-    const converter = new Converter({
-      client: this.client,
-      source: rawFile,
-      destination: convertedFile,
-    });
-    await converter.execute(onProgress);
-    log({
-      service: LOGGER_SERVICE_NAME,
-      level: "info",
-      message: "getPlaybackSource: converted",
-      data: { asin: this.asin },
-    });
-
-    return { uri: convertedFile.uri };
-  }
-
-  private async getAAXUrl(): Promise<URL> {
-    if (!this.isRemoteSourceAvailable) {
-      throw new Error(`Remote source is not available for asin ${this.asin}`);
-    }
-
-    if (this.downloadSourceMetadata.fileType !== "aax") {
-      throw new Error(`Remote source is not AAX for asin ${this.asin}`);
-    }
-
-    const query = new URLSearchParams({
-      type: "AUDI",
-      currentTransportMethod: "WIFI",
-      key: this.asin,
-      codec: this.downloadSourceMetadata.codecName,
-    });
-
-    const res = await this.client.fetch(
-      new URL(
-        `https://cde-ta-g7g.amazon.com/FionaCDEServiceEngine/FSDownloadContent?${query}`
-      ),
-      {
-        method: "HEAD",
-      }
-    );
-
-    if (!res.ok) {
-      let resBody = "";
+// Parse the highest resolution image URL from the library item
+const parseImageUrl = (i: Pick<LibraryItem, "product_images">): string => {
+  const urls = Object.entries(i.product_images)
+    .map(([resolution, url]) => {
+      let parsedResolution = 0;
       try {
-        resBody = await res.text();
-      } catch (_) {
-        /* noop */
+        parsedResolution = parseInt(resolution);
+      } catch (e) {
+        // ignore
       }
-      log({
-        service: LOGGER_SERVICE_NAME,
-        level: "error",
-        message: "getAAXUrl: failed",
-        data: { asin: this.asin, status: res.status, body: resBody },
-      });
 
-      throw new Error(`Failed to get AAX url for asin ${this.asin}`);
-    }
+      return { resolution: parsedResolution, url };
+    })
+    .sort((a, b) => b.resolution - a.resolution);
 
-    return new URL(
-      res.url.replace("cds.audible.com", `cds.audible.${this.client.getTLD()}`)
-    );
+  if (urls.length === 0) {
+    throw new Error("No image URLs found");
   }
 
-  private async getAAXCUrl(): Promise<URL> {
-    throw new Error("Not implemented");
+  return urls[0].url;
+};
+
+// Parse the authors from the library item
+const parseAuthors = (i: Pick<LibraryItem, "authors">): string[] => {
+  if (i.authors.length === 0) {
+    throw new Error("No authors found");
   }
 
-  public static parseAsin(id: AssetId): string {
-    if (!id.startsWith("audible:")) {
-      throw new Error(`Invalid audible asset id: ${id}`);
-    }
+  return i.authors.map((author) => author.name);
+};
 
-    return id.slice("audible:".length);
+// Parse whether the asset is downloadable from the library item
+const parseIsDownloadable = ({
+  publication_datetime: publicationDatetime,
+  customer_rights: customerRights,
+}: Pick<LibraryItem, "publication_datetime" | "customer_rights">): boolean => {
+  // Assets with no publication date are not published
+  if (!publicationDatetime) {
+    return false;
   }
+
+  // If the publication date is in the future, the asset is not published
+  if (new Date(publicationDatetime).getTime() > Date.now()) {
+    return false;
+  }
+
+  // If the asset is not consumable offline, it is not playable
+  if (!customerRights?.is_consumable_offline) {
+    return false;
+  }
+
+  return true;
+};
+
+enum Codec {
+  HIGH = "AAX_44_128",
+  NORMAL = "AAX_44_64",
 }
+
+// Parse metadata required for source download from the library item.
+export const parseSourceCodecMetadata = (
+  {
+    is_ayce: isAyce,
+    available_codecs: availableCodecs,
+  }: Pick<LibraryItem, "is_ayce" | "available_codecs">,
+  targetQuality: "best" | "high" | "normal"
+): SourceCodecMetadata => {
+  if (isAyce || !availableCodecs || availableCodecs.length === 0) {
+    return { fileType: "aaxc" };
+  }
+
+  let verify = null;
+  if (targetQuality !== "best") {
+    verify = targetQuality === "high" ? Codec.HIGH : Codec.NORMAL;
+  }
+
+  let best = [null, 0, 0, null] as [
+    string | null,
+    number,
+    number,
+    string | null
+  ];
+
+  for (const codec of availableCodecs) {
+    // Check for exact quality match if verify is set
+    if (verify && verify === codec.name.toUpperCase()) {
+      return {
+        fileType: "aax",
+        codec: verify,
+        codecName: codec.enhanced_codec,
+      };
+    }
+
+    // Find best quality if no exact match needed or found
+    if (codec.name.startsWith("aax_")) {
+      const name = codec.name;
+      try {
+        const [sampleRate, bitrate] = name
+          .slice(4)
+          .split("_")
+          .map((num) => parseInt(num, 10));
+
+        if (sampleRate > best[1] || bitrate > best[2]) {
+          best = [
+            codec.name.toUpperCase(),
+            sampleRate,
+            bitrate,
+            codec.enhanced_codec,
+          ];
+        }
+      } catch (error) {
+        log({
+          level: "warn",
+          message: `Unexpected codec name: ${name}`,
+          service: LOGGER_SERVICE_NAME,
+        });
+        continue;
+      }
+    }
+  }
+
+  if (verify) {
+    log({
+      level: "warn",
+      message: `${verify} codec was not found, using ${best[0]} instead`,
+      service: LOGGER_SERVICE_NAME,
+    });
+  }
+
+  return {
+    fileType: "aax",
+    codec: best[0]!,
+    codecName: best[3]!,
+  };
+};

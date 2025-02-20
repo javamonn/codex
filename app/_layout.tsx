@@ -7,7 +7,6 @@ import { Stack } from "expo-router";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 
-import { AssetServiceProvider } from "@/components/contexts/AssetsServiceContext";
 import { TranscriberServiceProvider } from "@/components/contexts/TranscriberContext";
 import { useTheme } from "@/hooks/use-theme";
 import { colors } from "@/constants/colors";
@@ -30,41 +29,39 @@ export default function RootLayout() {
   }, [theme.color.background]);
 
   return (
-    <AssetServiceProvider initializeOnMount>
-      <TranscriberServiceProvider>
-        <ThemeProvider value={theme.navigation}>
-          <QueryClientProvider client={queryClient}>
-            <Stack
-              screenOptions={{
+    <TranscriberServiceProvider>
+      <ThemeProvider value={theme.navigation}>
+        <QueryClientProvider client={queryClient}>
+          <Stack
+            screenOptions={{
+              contentStyle: theme.style.background,
+            }}
+          >
+            <Stack.Screen
+              name="(tabs)"
+              options={{
                 contentStyle: theme.style.background,
+                headerShown: false,
               }}
-            >
-              <Stack.Screen
-                name="(tabs)"
-                options={{
-                  contentStyle: theme.style.background,
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="asset/[id]"
-                options={{
-                  contentStyle: theme.style.background,
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="+not-found"
-                options={{
-                  contentStyle: theme.style.background,
-                  headerShown: false,
-                }}
-              />
-            </Stack>
-          </QueryClientProvider>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </TranscriberServiceProvider>
-    </AssetServiceProvider>
+            />
+            <Stack.Screen
+              name="asset/[id]"
+              options={{
+                contentStyle: theme.style.background,
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="+not-found"
+              options={{
+                contentStyle: theme.style.background,
+                headerShown: false,
+              }}
+            />
+          </Stack>
+        </QueryClientProvider>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </TranscriberServiceProvider>
   );
 }
