@@ -12,7 +12,8 @@ import Animated, {
   useAnimatedScrollHandler,
 } from "react-native-reanimated";
 
-import { Asset } from "@/services/assets/types";
+import { UnionAsset } from "@/rq/union-assets/types";
+import { AssetServiceId } from "@/rq/asset-services/types";
 
 import { PADDING_HORIZONTAL } from "./common";
 import { Header } from "./header";
@@ -32,7 +33,8 @@ type AssetCell = {
   image: string;
   authors: string[];
   title: string;
-  id: string;
+  assetId: string;
+  assetType: AssetServiceId;
 };
 
 type Cell = HeaderCell | SubheaderCell | AssetCell;
@@ -54,14 +56,14 @@ const keyExtractor = (item: Cell) => {
     case CellType.Subheader:
       return "subheader";
     case CellType.Asset:
-      return item.id;
+      return `${item.assetType}:${item.assetId}`;
   }
 };
 
 const getItemType = (item: Cell) => item.type;
 
 export const AssetList: React.FC<{
-  assets: Asset[] | undefined;
+  assets: UnionAsset[] | undefined;
   onLoad: (() => void) | undefined;
   pageSize: number;
 }> = ({ assets, onLoad, pageSize }) => {
@@ -145,7 +147,8 @@ export const AssetList: React.FC<{
               title={item.title}
               authors={item.authors}
               image={item.image}
-              id={item.id}
+              assetId={item.assetId}
+              assetType={item.assetType}
               onImageDisplay={
                 haveCalledOnLoad.current ? undefined : handleImageDisplay
               }
@@ -202,8 +205,9 @@ export const AssetList: React.FC<{
         type: CellType.Asset,
         title: asset.title,
         image: asset.imageUrl,
-        authors: asset.creators,
-        id: asset.id,
+        authors: asset.authors,
+        assetId: asset.id,
+        assetType: asset.type,
       })),
     ];
   }, [assets]);

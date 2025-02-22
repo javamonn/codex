@@ -2,12 +2,12 @@ import { useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native";
 
+import { useQuery, PAGE_LIMIT } from "@/rq/union-assets/query";
 import * as SplashScreen from "@/utils/splash-screen";
 import { AssetList } from "@/components/containers/asset-list";
 
 import { AssetListLoadingLayout } from "./asset-list-loading-layout";
 import { AssetListErrorLayout } from "./asset-list-error-layout";
-import { useQuery, PAGE_LIMIT } from "./query";
 
 export const AssetListLayout: React.FC = () => {
   const { data: assets, isPending, isError } = useQuery();

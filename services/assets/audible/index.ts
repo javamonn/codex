@@ -1,7 +1,7 @@
 import { EventEmitter } from "eventemitter3";
 import type { AudioSource } from "expo-audio";
 
-import { AssetServiceInterface } from "../types";
+import { AssetServiceInterface } from "../asset-service";
 
 import { DeviceRegistration } from "./api/device-registration";
 import { getLibraryPage, getLibraryItem, ResponseGroup } from "./api/library";
@@ -29,7 +29,7 @@ const LIBRARY_ITEM_RESPONSE_GROUPS: ResponseGroup[] = [
   "customer_rights",
 ];
 
-export const AudibleAssetsService: AssetServiceInterface<
+export const AudibleAssetService: AssetServiceInterface<
   AudibleAsset,
   AudibleAssetsServiceParams,
   EventTypes

@@ -5,6 +5,8 @@ import { Image } from "expo-image";
 
 import { Text } from "@/components/primitives/text";
 import { Pressable } from "@/components/primitives/pressable";
+import { AssetServiceId } from "@/rq/asset-services/types";
+import { makeHref } from "@/app/asset/[assetType]/[assetId]";
 
 import { PADDING_HORIZONTAL } from "./common";
 
@@ -18,21 +20,30 @@ export const ListItem: React.FC<{
   title: string;
   authors: string[];
   image: string;
-  id: string;
+  assetId: string;
+  assetType: AssetServiceId;
   onImageDisplay?: (id: string) => void;
-}> = ({ title, image, id, onImageDisplay, authors }) => {
+}> = ({ title, image, assetId, assetType, onImageDisplay, authors }) => {
+  const globalId = `${assetType}:${assetId}`;
+
   const handlePress = useCallback(() => {
-    router.push(`/asset/${id}`);
-  }, [router.push]);
+    router.push(makeHref({ assetId, assetType }));
+  }, [router.push, assetId, assetType]);
 
   return (
     <View style={styles.root}>
-      <Pressable style={styles.pressable} onPress={handlePress} unstable_pressDelay={50}>
+      <Pressable
+        style={styles.pressable}
+        onPress={handlePress}
+        unstable_pressDelay={50}
+      >
         <Image
           source={{ uri: image }}
           style={styles.image}
-          recyclingKey={id}
-          onDisplay={onImageDisplay ? () => onImageDisplay(id) : undefined}
+          recyclingKey={globalId}
+          onDisplay={
+            onImageDisplay ? () => onImageDisplay(globalId) : undefined
+          }
         />
         <View style={styles.textContainer}>
           <Text color="primary" size="regular" weight="medium">

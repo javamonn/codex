@@ -27,6 +27,6 @@ declare class AssetService<
 
 export type AssetServiceInterface<
   Asset,
-  InstanceParams,
-  EventTypes extends EventEmitter.ValidEventTypes
+  InstanceParams = any,
+  EventTypes extends EventEmitter.ValidEventTypes = any
 > = typeof AssetService<Asset, InstanceParams, EventTypes>;

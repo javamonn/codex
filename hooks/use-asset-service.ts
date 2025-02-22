@@ -1,57 +1,17 @@
-import { useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import {
-  queryOptions,
-  useQuery,
   useMutation,
+
   useQueryClient,
 } from "@tanstack/react-query";
 
-import { AudibleAssetsService } from "@/services/assets/audible";
 import { assetServiceContextServiceKey } from "@/utils/async-storage-key";
 import { log } from "@/services/logger";
-
-export type Services = {
-  audible: InstanceType<typeof AudibleAssetsService> | null;
-};
-type ServiceId = keyof Services;
 
 // Currently supported asset services
 export const SERVICE_IDS = ["audible"] as const;
 const LOGGER_SERVICE_NAME = "hooks/use-asset-services";
-
-const getQueryOptions = <T extends ServiceId>(serviceId: T) =>
-  queryOptions({
-    queryKey: ["asset-services", serviceId],
-    queryFn: async () => {
-      const serialized = await AsyncStorage.getItem(
-        assetServiceContextServiceKey(serviceId)
-      );
-
-      if (!serialized) {
-        return null;
-      }
-
-      switch (serviceId) {
-        case "audible": {
-          return new AudibleAssetsService(serialized);
-        }
-        default:
-          throw new Error(`Unknown serviceId: ${serviceId}`);
-      }
-    },
-
-    // Asset services are persisted in memory indefinitely
-    retry: false,
-    staleTime: Infinity,
-    gcTime: Infinity,
-  });
-
-export const useAssetService = <T extends ServiceId>(serviceId: T) => {
-  const queryOptions = useMemo(() => getQueryOptions(serviceId), [serviceId]);
-
-  return useQuery(queryOptions);
-};
 
 export const useMutateAssetService = <T extends ServiceId>(serviceId: T) => {
   const queryClient = useQueryClient();
