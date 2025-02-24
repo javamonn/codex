@@ -34,11 +34,13 @@ export const getM4BToWAVChunkConversionConfig = ({
   chunkStartSeconds,
   chunkEndSeconds,
 }: {
-  chunkStartSeconds: string;
-  chunkEndSeconds: string;
+  chunkStartSeconds: number;
+  chunkEndSeconds: number;
 }): ConversionConfig => ({
   onGetCommand: (inputURI: string, outputURI: string) =>
-    `-ar 16000 -ac 1 -c:a pcm_s16le -ss ${chunkStartSeconds} -t ${chunkEndSeconds} -i ${inputURI} ${outputURI}`,
+    `-ar 16000 -ac 1 -c:a pcm_s16le -ss ${String(
+      chunkStartSeconds
+    )} -t ${String(chunkEndSeconds)} -i ${inputURI} ${outputURI}`,
   outputFormat: "wav",
 });
 
@@ -80,7 +82,8 @@ export const convert = async ({
       destination.delete();
     }
 
-    // In-progress conversions go to a tmp file which is renamed to destination upon completion
+    // In-progress conversions go to a tmp file which is renamed to destination upon
+    // completion
     tmpDestination = new File(`${destination.uri}.tmp.${outputFormat}`);
 
     const isSuccess = await executeSession({

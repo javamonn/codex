@@ -24,8 +24,8 @@ export const convertFromM4BToWAVChunk = ({
   chunkEndSeconds,
   ...convertParams
 }: Omit<ConvertParams, "config"> & {
-  chunkStartSeconds: string;
-  chunkEndSeconds: string;
+  chunkStartSeconds: number;
+  chunkEndSeconds: number;
 }): Promise<File> => {
   return convert({
     ...convertParams,

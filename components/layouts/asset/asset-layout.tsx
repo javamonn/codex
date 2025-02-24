@@ -35,6 +35,8 @@ export const AssetLayout: React.FC<{
   return (
     <SafeAreaView style={styles.root}>
       <AssetAudioPlayerTranscript
+        assetId={assetId}
+        assetType={assetType}
         audioPlayer={audioPlayer}
         audioSource={assetAudioSource ?? null}
       />
@@ -45,6 +47,6 @@ export const AssetLayout: React.FC<{
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1
-  }
-})
+    flex: 1,
+  },
+});
