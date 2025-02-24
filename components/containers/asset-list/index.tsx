@@ -13,7 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { UnionAsset } from "@/rq/union-assets/types";
-import { AssetServiceId } from "@/rq/asset-services/types";
+import { AssetServiceId } from "@/services/assets/types";
 
 import { PADDING_HORIZONTAL } from "./common";
 import { Header } from "./header";

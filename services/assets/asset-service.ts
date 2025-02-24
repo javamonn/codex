@@ -1,32 +1,23 @@
 import type { EventEmitter } from "eventemitter3";
-import type { AudioSource } from "expo-audio";
+import type { ProgressEvent } from "./progress-event";
 
-declare class AssetService<
+export abstract class AssetService<
   Asset = any,
-  InstanceParams = any,
   EventTypes extends EventEmitter.ValidEventTypes = string | symbol
 > {
-  // Construct the service with instance params
-  constructor(params: InstanceParams);
-
-  // Construct the service with serialized params
-  constructor(params: string);
-
   // Get the EventEmitter instance for the service
-  getEmitter(): Omit<EventEmitter<EventTypes>, "emit">;
+  abstract getEmitter(): Omit<EventEmitter<EventTypes>, "emit">;
 
   // Get assets from the service.
-  getAssets(params: { page: number; limit: number }): Promise<Asset[]>;
+  abstract getAssets(params: { page: number; limit: number }): Promise<Asset[]>;
 
   // Get a single asset from the service.
-  getAsset(params: { id: string }): Promise<Asset | null>;
+  abstract getAsset(params: { id: string }): Promise<Asset | null>;
 
-  // Get the playback source for an asset.
-  getAssetPlaybackSource(params: { asset: Asset }): Promise<AudioSource>;
+  // Get the audio source for an asset.
+  abstract getAssetAudioSource(params: {
+    asset: Asset;
+    abortSignal: AbortSignal;
+    onProgress: (ev: ProgressEvent) => void;
+  }): Promise<{ uri: string }>;
 }
-
-export type AssetServiceInterface<
-  Asset,
-  InstanceParams = any,
-  EventTypes extends EventEmitter.ValidEventTypes = any
-> = typeof AssetService<Asset, InstanceParams, EventTypes>;

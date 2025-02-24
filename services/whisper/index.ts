@@ -7,7 +7,7 @@ import {
 
 const model = require("../assets/whisper/ggml-base.en-q8_0.bin");
 
-export class TranscriberService {
+export class WhisperService {
   private whisper: Promise<WhisperContext> | null;
 
   constructor() {
@@ -33,13 +33,16 @@ export class TranscriberService {
     abortSignal: AbortSignal;
     transcribeOptions: TranscribeFileOptions;
   }): Promise<TranscribeResult> {
-    return this.initialize().then((whisper) => {
-      const { stop, promise } = whisper.transcribe(uri, transcribeOptions);
-      abortSignal.addEventListener("abort", () => {
-        stop();
-      });
+    const whisper = await this.initialize();
+    const { stop, promise } = whisper.transcribe(uri, transcribeOptions);
+    const handleAbort = () => {
+      stop();
+    };
 
-      return promise;
+    abortSignal.addEventListener("abort", handleAbort);
+
+    return promise.finally(() => {
+      abortSignal.removeEventListener("abort", handleAbort);
     });
   }
 

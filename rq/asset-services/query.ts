@@ -7,8 +7,7 @@ import {
 
 import { assetServiceContextServiceKey } from "@/utils/async-storage-key";
 import { AudibleAssetService } from "@/services/assets/audible";
-
-import { AssetServiceId, AssetService } from "./types";
+import { AssetServiceId, AssetServiceInstance } from "@/services/assets/types";
 
 type QueryKey<T extends AssetServiceId> = ["asset-services", T];
 
@@ -18,7 +17,7 @@ export const getQueryKey = <T extends AssetServiceId>(
 
 const handleQuery = async <T extends AssetServiceId>(
   ctx: QueryFunctionContext<QueryKey<T>>
-): Promise<AssetService<T> | null> => {
+): Promise<AssetServiceInstance<T> | null> => {
   const [_, serviceId] = ctx.queryKey;
 
   const serialized = await AsyncStorage.getItem(
@@ -31,7 +30,7 @@ const handleQuery = async <T extends AssetServiceId>(
 
   switch (serviceId) {
     case "audible": {
-      return new AudibleAssetService(serialized);
+      return new AudibleAssetService(serialized) as AssetServiceInstance<T>;
     }
     default:
       throw new Error(`Unknown serviceId: ${serviceId}`);

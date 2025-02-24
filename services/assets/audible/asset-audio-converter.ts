@@ -1,7 +1,7 @@
 import { Directory, Paths, File } from "expo-file-system/next";
 
 import { Client } from "./api/client";
-import { AudibleAsset } from "./asset";
+import { AudibleAsset } from "./audible-asset";
 import { getDestinationFile as getDownloadDestinationFile } from "./asset-audio-downloader";
 import { convertFromAAXToM4B } from "@/services/ffmpeg";
 
@@ -53,7 +53,7 @@ export const getOrConvert = async ({
   });
 };
 
-const getDestinationFile = (asset: AudibleAsset): File => {
+export const getDestinationFile = (asset: AudibleAsset): File => {
   const audioDirectory = new Directory(Paths.document, AUDIO_PATH);
 
   // Should only occur once per app install
@@ -61,7 +61,7 @@ const getDestinationFile = (asset: AudibleAsset): File => {
     audioDirectory.create();
   }
 
-  const fileName = `${asset.id}.m4b`;
+  const fileName = `audible-${asset.id}.m4b`;
 
   return new File(audioDirectory, fileName);
 };

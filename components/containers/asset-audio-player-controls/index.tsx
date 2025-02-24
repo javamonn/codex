@@ -1,55 +1,11 @@
-import { useEffect, useRef } from "react";
-import { AudioSource, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { AudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { View, Pressable, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { log } from "@/services/logger";
-import { useTranscriberServiceContext } from "@/components/contexts/TranscriberContext";
-
-const LOGGER_SERVICE_NAME = "AudioPlayer";
-
-export const AudioPlayer: React.FC<{ source: AudioSource }> = ({ source }) => {
-  const player = useAudioPlayer(source);
-  const playerStatus = useAudioPlayerStatus(player);
-  const transcriberAbortController = useRef(new AbortController());
-  const { transcriber } = useTranscriberServiceContext();
-
-  useEffect(() => {
-    return () => {
-      // Stop any in-progress transcription
-      transcriberAbortController.current.abort();
-    };
-  }, []);
-
-  useEffect(() => {
-    const maybeUri = (source as { uri?: string } | null)?.uri;
-    if (!maybeUri) {
-      log({
-        service: LOGGER_SERVICE_NAME,
-        message: "Skipping transcriber execution, no URI provided",
-        data: { source },
-        level: "warn",
-      });
-      return;
-    }
-
-    transcriber
-      .exec({
-        uri: maybeUri,
-        abortSignal: transcriberAbortController.current.signal,
-        transcribeOptions: {
-          onNewSegments: (segments) => {
-            console.log("new transcribe segments", segments);
-          },
-          language: "en",
-          duration: 60 * 1000,
-          offset: 0,
-        },
-      })
-      .then((result) => {
-        console.log("transcribe result", result);
-      });
-  }, [source]);
+export const AssetAudioPlayerControls: React.FC<{
+  audioPlayer: AudioPlayer;
+}> = ({ audioPlayer }) => {
+  const playerStatus = useAudioPlayerStatus(audioPlayer);
 
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
@@ -61,7 +17,7 @@ export const AudioPlayer: React.FC<{ source: AudioSource }> = ({ source }) => {
     const { locationX, currentTarget } = event.nativeEvent;
     const progress = locationX / currentTarget.offsetWidth;
     const seekTime = progress * playerStatus.duration;
-    player.seekTo(seekTime);
+    audioPlayer.seekTo(seekTime);
   };
 
   return (
@@ -70,7 +26,7 @@ export const AudioPlayer: React.FC<{ source: AudioSource }> = ({ source }) => {
       <View style={styles.mainControls}>
         <Pressable
           onPress={() =>
-            player.seekTo(Math.max(0, playerStatus.currentTime - 15))
+            audioPlayer.seekTo(Math.max(0, playerStatus.currentTime - 15))
           }
           style={styles.skipButton}
         >
@@ -81,10 +37,9 @@ export const AudioPlayer: React.FC<{ source: AudioSource }> = ({ source }) => {
         <Pressable
           onPress={() => {
             if (playerStatus.playing) {
-              player.pause();
+              audioPlayer.pause();
             } else {
-              player.play();
-              console.log("on play");
+              audioPlayer.play();
             }
           }}
           style={styles.playButton}
@@ -98,7 +53,7 @@ export const AudioPlayer: React.FC<{ source: AudioSource }> = ({ source }) => {
 
         <Pressable
           onPress={() =>
-            player.seekTo(
+            audioPlayer.seekTo(
               Math.min(playerStatus.duration, playerStatus.currentTime + 15)
             )
           }
@@ -141,7 +96,7 @@ export const AudioPlayer: React.FC<{ source: AudioSource }> = ({ source }) => {
             const speeds = [0.5, 1, 1.25, 1.5, 2];
             const currentIndex = speeds.indexOf(playerStatus.playbackRate);
             const nextIndex = (currentIndex + 1) % speeds.length;
-            player.setPlaybackRate(speeds[nextIndex]);
+            audioPlayer.setPlaybackRate(speeds[nextIndex]);
           }}
           style={styles.speedButton}
         >

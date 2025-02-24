@@ -3,10 +3,11 @@ import { Directory, Paths, File } from "expo-file-system/next";
 import { assertResponseStatus } from "@/utils/assert-response-status";
 import { log } from "@/services/logger";
 
+import { ProgressEvent } from "../progress-event";
+
 import { Client } from "./api/client";
 import { getAAXSourceUrl } from "./api/download-content";
-import { AudibleAsset } from "./asset";
-import { ProgressEvent } from "./progress-event";
+import { AudibleAsset } from "./audible-asset";
 
 const LOGGER_SERVICE_NAME = "audible/asset-audio-downloader";
 

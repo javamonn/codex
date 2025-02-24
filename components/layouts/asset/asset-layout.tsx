@@ -1,13 +1,13 @@
-import { useEffect } from "react";
+import { StyleSheet } from "react-native";
+import { useAudioPlayer } from "expo-audio";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useQuery as useAssetQuery } from "@/rq/asset/query";
-import { AssetServiceId } from "@/rq/asset-services/types";
+import { useQuery as useAssetAudioSourceQuery } from "@/rq/asset-audio-source/query";
+import { AssetServiceId } from "@/services/assets/types";
 
-import { useTranscriberServiceContext } from "@/components/contexts/TranscriberContext";
-import { AssetAudioPlayer } from "@/components/containers/asset-audio-player";
-
-import { AssetErrorLayout } from "./asset-error-layout";
-import { AssetLoadingLayout } from "./asset-loading-layout";
+import { AssetAudioPlayerControls } from "@/components/containers/asset-audio-player-controls";
+import { AssetAudioPlayerTranscript } from "@/components/containers/asset-audio-player-transcript";
 
 export const AssetLayout: React.FC<{
   assetId: string;
@@ -15,26 +15,36 @@ export const AssetLayout: React.FC<{
 }> = ({ assetType, assetId }) => {
   const {
     data: asset,
-    isLoading,
-    isError,
+    isLoading: isLoadingAsset,
+    isError: isErrorAsset,
   } = useAssetQuery({ assetType, assetId });
-  const { transcriber } = useTranscriberServiceContext();
+  const {
+    audioSourceFetchStatus,
+    query: {
+      data: assetAudioSource,
+      isLoading: assetAudioIsLoading,
+      isError: assetAudioIsError,
+    },
+  } = useAssetAudioSourceQuery({
+    assetId,
+    assetType,
+  });
 
-  // Initialize the transcriber service asap
-  useEffect(() => {
-    transcriber.initialize();
-    return () => {
-      transcriber.release();
-    };
-  }, []);
+  const audioPlayer = useAudioPlayer(assetAudioSource ?? null);
 
-  if (isLoading) {
-    <AssetLoadingLayout />;
-  }
-
-  if (isError || !asset) {
-    return <AssetErrorLayout />;
-  }
-
-  return <AssetAudioPlayer asset={asset} />;
+  return (
+    <SafeAreaView style={styles.root}>
+      <AssetAudioPlayerTranscript
+        audioPlayer={audioPlayer}
+        audioSource={assetAudioSource ?? null}
+      />
+      <AssetAudioPlayerControls audioPlayer={audioPlayer} />
+    </SafeAreaView>
+  );
 };
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1
+  }
+})

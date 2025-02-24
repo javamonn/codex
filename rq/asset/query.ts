@@ -11,7 +11,7 @@ import { getQueryKey as unionAssetsGetQueryKey } from "../union-assets/query";
 import { UnionAsset } from "../union-assets/types";
 import { getQueryOptions as assetServicesGetQueryOptions } from "../asset-services/query";
 
-import { AssetServiceId } from "../asset-services/types";
+import { AssetServiceId, Asset } from "@/services/assets/types";
 
 type QueryKey<T extends AssetServiceId> = ["asset", T, string];
 
@@ -32,7 +32,7 @@ const getInitialData = <T extends AssetServiceId>({
   assetId: string;
   assetType: T;
 }) => ({
-  initialData: () => {
+  initialData: (): Asset<T> | undefined => {
     const assets = queryClient.getQueryData<InfiniteData<UnionAsset[]>>(
       unionAssetsGetQueryKey()
     );
@@ -51,7 +51,7 @@ const getInitialData = <T extends AssetServiceId>({
 
     return undefined;
   },
-  initialDataUpdatedAt: () =>
+  initialDataUpdatedAt: (): number | undefined =>
     queryClient.getQueryState<InfiniteData<UnionAsset[]>>(
       unionAssetsGetQueryKey()
     )?.dataUpdatedAt,
@@ -59,7 +59,9 @@ const getInitialData = <T extends AssetServiceId>({
 
 const getQuery =
   (queryClient: QueryClient) =>
-  async <T extends AssetServiceId>(ctx: QueryFunctionContext<QueryKey<T>>) => {
+  async <T extends AssetServiceId>(
+    ctx: QueryFunctionContext<QueryKey<T>>
+  ): Promise<Asset<T> | null> => {
     const [_, assetType, assetId] = ctx.queryKey;
 
     const assetService = await queryClient.ensureQueryData(
@@ -73,7 +75,7 @@ const getQuery =
     return assetService.getAsset({ id: assetId });
   };
 
-const getQueryOptions = <T extends AssetServiceId>({
+export const getQueryOptions = <T extends AssetServiceId>({
   queryClient,
   assetId,
   assetType,
@@ -95,7 +97,7 @@ const getQueryOptions = <T extends AssetServiceId>({
     initialDataUpdatedAt,
     // Do not refetch the asset if we have it from cache in initialData
     staleTime: Infinity,
-    gcTime: 5 * 6 * 1000,
+    gcTime: 5 * 60 * 1000,
     retry: false,
   });
 };

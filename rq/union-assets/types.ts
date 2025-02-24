@@ -1,4 +1,4 @@
-import { AudibleAsset } from "@/services/assets/audible/asset";
+import type { AudibleAsset } from "@/services/assets/audible";
 
 export type UnionAsset = AudibleAsset;
 

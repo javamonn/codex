@@ -7,19 +7,19 @@ import {
 
 import { assetServiceContextServiceKey } from "@/utils/async-storage-key";
 import { log } from "@/services/logger";
+import { AssetServiceId, AssetServiceInstance } from "@/services/assets/types";
 
 import { getQueryKey } from "./query";
-import { AssetServices, AssetServiceId } from "./types";
 
 const LOGGER_SERVICE_NAME = "rq/asset-services/mutate";
 
 type MutationVariables<T extends AssetServiceId> = {
   serviceId: T;
-  service: AssetServices[T];
+  service: AssetServiceInstance<T>;
 };
 
 type MutationContext<T extends AssetServiceId> = {
-  previousService: AssetServices[T];
+  previousService: AssetServiceInstance<T> | undefined;
 };
 
 const handleMutation = async <T extends AssetServiceId>({
@@ -51,12 +51,12 @@ const getOnMutate =
     service,
     serviceId,
   }: MutationVariables<T>): MutationContext<T> => {
-    let prev: AssetServices[T] | null = null;
+    let prev: AssetServiceInstance<T> | undefined = undefined;
 
-    queryClient.setQueryData<AssetServices[T]>(
+    queryClient.setQueryData<AssetServiceInstance<T>>(
       getQueryKey(serviceId),
       (current) => {
-        prev = current ?? null;
+        prev = current;
         return service;
       }
     );
@@ -79,10 +79,17 @@ const getOnError =
     });
 
     // Rollback value set in `onMutate` on error
-    queryClient.setQueryData<AssetServices[T]>(
-      ["assets-services", serviceId],
-      ctx?.previousService ?? null
-    );
+    if (ctx?.previousService) {
+      queryClient.setQueryData<AssetServiceInstance<T>>(
+        getQueryKey(serviceId),
+        ctx.previousService
+      );
+    } else {
+      queryClient.removeQueries({
+        queryKey: getQueryKey(serviceId),
+        exact: true,
+      });
+    }
   };
 
 export const useMutation = <T extends AssetServiceId>() => {

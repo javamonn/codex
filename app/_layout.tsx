@@ -7,7 +7,7 @@ import { Stack } from "expo-router";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 
-import { TranscriberServiceProvider } from "@/components/contexts/TranscriberContext";
+import { WhisperServiceProvider } from "@/components/contexts/whisper-service-context";
 import { useTheme } from "@/hooks/use-theme";
 import { colors } from "@/constants/colors";
 import * as SplashScreen from "@/utils/splash-screen";
@@ -29,7 +29,7 @@ export default function RootLayout() {
   }, [theme.color.background]);
 
   return (
-    <TranscriberServiceProvider>
+    <WhisperServiceProvider>
       <ThemeProvider value={theme.navigation}>
         <QueryClientProvider client={queryClient}>
           <Stack
@@ -62,6 +62,6 @@ export default function RootLayout() {
         </QueryClientProvider>
         <StatusBar style="auto" />
       </ThemeProvider>
-    </TranscriberServiceProvider>
+    </WhisperServiceProvider>
   );
 }

@@ -5,7 +5,7 @@ import { Image } from "expo-image";
 
 import { Text } from "@/components/primitives/text";
 import { Pressable } from "@/components/primitives/pressable";
-import { AssetServiceId } from "@/rq/asset-services/types";
+import { AssetServiceId } from "@/services/assets/types";
 import { makeHref } from "@/app/asset/[assetType]/[assetId]";
 
 import { PADDING_HORIZONTAL } from "./common";

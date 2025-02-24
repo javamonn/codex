@@ -16,3 +16,5 @@ export class ProgressEvent {
     }
   }
 }
+
+export type ProgressEventHandler = (ev: ProgressEvent) => void;
